@@ -12,7 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dir', type=str, help="The base dir to which the capture will output")
     parser.add_argument('-i', '--iface', type=str, help="The interface to perform capturing.")
     parser.add_argument('-r', '--repeat', type=int, default=1, help="How many times the request will repeat, if set with <=0, 1 will be used.")
-    parser.add_argument('-t', '--timeout', type=int, default=10, help="The living time for a browsing session.")
+    parser.add_argument('-t', '--timeout', type=int, default=200, help="The living time for a browsing session.")
     args = parser.parse_args()
 
     repeat = 1 if args.repeat < 1 else args.repeat
