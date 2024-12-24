@@ -6,9 +6,9 @@ if sys.version_info[:2] != (3, 8):
 
 setup(
     name='WFlib',
-    version='0.1',
-    description='Library for website fingerprinting attacks',
-    author='Xinhao Deng',
+    version='0.2',
+    description='Extended WFlib. The original library is at https://github.com/Xinhao-Deng/Website-Fingerprinting-Library, by Xinhao Deng (dengxh23@mails.tsinghua.edu.cn) and Yixiang Zhang (zhangyix24@mails.tsinghua.edu.cn).',
+    author='Linxiao Yu',
     packages=[
         "WFlib",
         "WFlib.models",
@@ -21,7 +21,10 @@ setup(
         "scikit-learn",
         "einops",
         "timm",
+        "torch",
         "pytorch-metric-learning",
-        "captum"
+        "captum",
+        "scapy",
+        "selenium"
     ],
 )

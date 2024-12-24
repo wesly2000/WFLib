@@ -136,12 +136,30 @@ python -u exp/test.py \
 
 The meanings of all parameters can be found in the `exp/train.py` and `exp/test.py` files. WFlib supports modifying parameters to easily implement different attacks. Moreover, you can use WFlib to implement combinations of different attacks or perform ablation analysis.
 
+## The Extended Parts
+Currently, we keep the original docs unchanged, and add the docs for the extended parts in this section. The extended parts mainly includes **Visualization** and **Data Collection**.
+
+### Data Collection
+This part aims to automate the traffic collection with headless browser + Selenium, and collect traffic *asynchronously* with Scapy. Since most operations of Scapy involves OS sockets, usually it requires *sudo* to run the extended functions.
+
+To avoid messing up your Python environment, we *highly recommend* the use of *virtual Python environment*. To be specific, a quick workaround to the *permission issue* could be solved by
+
+```sh
+$ python -m venv path/to/your/venv
+$ source path/to/your/venv/bin/activate
+$ pip install .
+$ sudo path/to/your/venv/bin/python /your/script.py # Solve permission issue by authorizing virtual Python binary
+```
+
 ## Contact
 If you have any questions or suggestions, feel free to contact:
 
-- [Xinhao Deng](https://xinhao-deng.github.io/) (dengxh23@mails.tsinghua.edu.cn)
-- Yixiang Zhang (zhangyix24@mails.tsinghua.edu.cn)
++ Linxiao Yu (yulinxiaoybbb@seu.edu.cn)
 
 ## Acknowledgements
 
-We would like to thank all the authors of the referenced papers.
+We would like to appreciate sincerely the original WFlib created by
+- [Xinhao Deng](https://xinhao-deng.github.io/) (dengxh23@mails.tsinghua.edu.cn)
+- Yixiang Zhang (zhangyix24@mails.tsinghua.edu.cn)
+
+If we find that our extended library useful for general research on Website Fingerprinting Attack, we will try to create PR to the original repo. 
