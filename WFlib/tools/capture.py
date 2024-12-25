@@ -17,6 +17,7 @@ from selenium.webdriver.firefox.service import Service
 
 from scapy.all import sniff, wrpcap
 import pyshark
+from pyshark.capture.capture import Capture
 
 import time
 import threading
@@ -76,9 +77,9 @@ def capture(url, timeout, iface, output_file, log_output=None):
     browse_thread.join()
     capture_thread.join()
 
-def SNI_extract(file) -> set:
+def SNI_extract(capture : Capture) -> set:
     """
-    Extract all SNIs from a .pcap, and return a set that contains these SNIs.
+    Extract all SNIs from a capture, and return a set that contains these SNIs.
     """
     SNIs = set()
 
@@ -93,13 +94,11 @@ def SNI_extract(file) -> set:
             # Handle packets that don't have the expected structure
             print(f"Error processing packet: {e}")
 
-    capture = pyshark.FileCapture(file)
-
     for pkt in capture:
         process_packet(pkt)
     return SNIs
 
-def stream_number_extract(check) -> set:
+def stream_number_extract(capture : Capture, check) -> set:
     """
     Extract all TCP stream numbers for the streams where at least one packet within satisfies
     the condition required by the check.
@@ -120,7 +119,8 @@ def stream_number_extract(check) -> set:
     ------
     set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
     """
-    pass
+    stream_numbers = set(pkt['TCP'].stream for pkt in capture if check(pkt))
+    return stream_numbers
 
 def stream_extract(input_file : str, stream_numbers : list|set, output_file : str):
     """
