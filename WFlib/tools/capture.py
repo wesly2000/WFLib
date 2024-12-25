@@ -123,8 +123,20 @@ def stream_number_extract(capture : Capture, check) -> set:
     stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
     return stream_numbers
 
-def stream_extract(input_file : str, stream_numbers : Union[list, set], output_file : str):
+def stream_extract_filter(stream_numbers : Union[list, set]):
     """
     Extract the streams with the given stream_numbers from input_file, and write the results to output_file.
     """
-    pass
+    extended_stream_numbers = ["tcp.stream == " + stream_number for stream_number in stream_numbers]
+    display_filter = " or ".join(extended_stream_numbers)
+
+    return display_filter
+
+def stream_exclude_filter(stream_numbers : Union[list, set]):
+    """
+    Remove the streams with the given stream_numbers from input_file, and write the other streams to output_file.
+    """
+    extended_stream_numbers = ["tcp.stream != " + stream_number for stream_number in stream_numbers]
+    display_filter = " and ".join(extended_stream_numbers)
+
+    return display_filter
