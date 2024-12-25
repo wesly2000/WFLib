@@ -33,11 +33,11 @@ The semantics of the filter is that we ONLY want TCP or UDP packets, but the fol
 LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389), DOT (853), HTTP (80)
 
 NOTE: This filter is not exhausted, and further updates are possible in the future.
+NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of the request are based on HTTPS 
 """
 common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80) and (tcp or udp)'
 
 def capture(url, timeout, iface, output_file, log_output=None):
-    # TODO: Add some capture filter
     stop_event = threading.Event()
 
     def _sniff(iface, output_file):
@@ -74,3 +74,38 @@ def capture(url, timeout, iface, output_file, log_output=None):
 
     browse_thread.join()
     capture_thread.join()
+
+def SNI_extract(file) -> set:
+    """
+    Extract all SNIs from a .pcap, and return a set that contains these SNIs.
+    """
+    pass
+
+def stream_number_extract(check) -> set:
+    """
+    Extract all TCP stream numbers for the streams where at least one packet within satisfies
+    the condition required by the check.
+
+    For example, if the check checks whether a TLS session is for SNI=www.baidu.com, it iterates
+    over all the packets (all Client Hello's actually), if some packet contains the SNI, the tcp.stream
+    numbers will be recorded.
+
+    TODO: Currently, the extractor only works for TCP-based protocols. Integrating the support for UDP will
+    be finished in the future. :)
+
+    Parameter
+    ---------
+    check : function(pkt) -> bool
+        The check on packet. Return TRUE if the packet satisfies the condition.
+
+    Return
+    ------
+    set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
+    """
+    pass
+
+def stream_extract(input_file : str, stream_numbers : list|set, output_file : str):
+    """
+    Extract the streams with the given stream_numbers from input_file, and write the results to output_file.
+    """
+    pass
