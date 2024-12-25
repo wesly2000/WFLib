@@ -16,6 +16,7 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 
 from scapy.all import sniff, wrpcap
+import pyshark
 
 import time
 import threading
@@ -79,7 +80,24 @@ def SNI_extract(file) -> set:
     """
     Extract all SNIs from a .pcap, and return a set that contains these SNIs.
     """
-    pass
+    SNIs = set()
+
+    def process_packet(packet):
+        try:
+            if 'TLS' in packet:
+                tls_layer = packet['TLS']
+                if hasattr(tls_layer, 'handshake_extensions_server_name'):
+                    SNI = tls_layer.handshake_extensions_server_name
+                    SNIs.add(SNI)
+        except AttributeError as e:
+            # Handle packets that don't have the expected structure
+            print(f"Error processing packet: {e}")
+
+    capture = pyshark.FileCapture(file)
+
+    for pkt in capture:
+        process_packet(pkt)
+    return SNIs
 
 def stream_number_extract(check) -> set:
     """

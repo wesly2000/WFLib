@@ -25,6 +25,7 @@ setup(
         "pytorch-metric-learning",
         "captum",
         "scapy",
-        "selenium"
+        "selenium",
+        "pyshark"
     ],
 )
