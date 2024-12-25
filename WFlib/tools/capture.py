@@ -30,11 +30,11 @@ the capture.
 
 The semantics of the filter is that we ONLY want TCP or UDP packets, but the following protocols are NOT considered:
 
-LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389)
+LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389), DOT (853), HTTP (80)
 
 NOTE: This filter is not exhausted, and further updates are possible in the future.
 """
-common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900) and (tcp or udp)'
+common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80) and (tcp or udp)'
 
 def capture(url, timeout, iface, output_file, log_output=None):
     # TODO: Add some capture filter
