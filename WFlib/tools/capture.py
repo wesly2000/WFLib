@@ -21,6 +21,7 @@ from pyshark.capture.capture import Capture
 
 import time
 import threading
+from typing import Union
 
 gecko_path = r'/usr/local/bin/geckodriver'
 
@@ -119,10 +120,10 @@ def stream_number_extract(capture : Capture, check) -> set:
     ------
     set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
     """
-    stream_numbers = set(pkt['TCP'].stream for pkt in capture if check(pkt))
+    stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
     return stream_numbers
 
-def stream_extract(input_file : str, stream_numbers : list|set, output_file : str):
+def stream_extract(input_file : str, stream_numbers : Union[list, set], output_file : str):
     """
     Extract the streams with the given stream_numbers from input_file, and write the results to output_file.
     """
