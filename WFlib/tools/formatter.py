@@ -102,8 +102,8 @@ class PcapFormatter(Formatter):
         traces (.pcap). Then the labels after performing transform should be [0, 0, 0, 1, 1, 1, 2, 2, 2].
         """
         super().__init__()
-        self.labels = []
-        self.hosts = []
+        self.buf['hosts'] = []
+        self.buf['labels'] = []
 
     def load(self, file):
         self.raw_buf = pyshark.FileCapture(input_file=file)
@@ -141,4 +141,7 @@ class PcapFormatter(Formatter):
         
         for pkt in self.raw_buf:
             for extractor in extractors:
-                self.buf[extractor.name].append(extractor.extract(pkt))
+                result = extractor.extract(pkt)
+                # Avoid possible non-IP packets
+                if result is not None:
+                    self.buf[extractor.name].append(result)

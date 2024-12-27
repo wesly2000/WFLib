@@ -1,4 +1,5 @@
 from WFlib.tools.capture import *
+from WFlib.tools.formatter import *
 import pyshark
 
 def test_SNI_extract():
@@ -66,3 +67,15 @@ def test_stream_exclude_filter():
     target = "tcp.stream != 1 and tcp.stream != 4 and tcp.stream != 3"
 
     assert display_filter == target
+
+def test_PcapFormatter():
+    """
+    This test covers reading the first 10 packets from a .pcap file, and extract the direction feature.
+    """
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    formatter = PcapFormatter()
+    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.transform("www.baidu.com", 0, extractor)
+
+    
