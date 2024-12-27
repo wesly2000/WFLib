@@ -85,7 +85,7 @@ class Formatter(object):
         file : file|str
             The file path to be read.
         """
-        np.savez()
+        np.savez(file=file, **self.buf)
 
 class PcapFormatter(Formatter):
     def __init__(self):
