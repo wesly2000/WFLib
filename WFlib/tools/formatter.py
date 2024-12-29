@@ -119,7 +119,7 @@ class Formatter(object):
         np.savez(file=file, **self._buf)
 
 class PcapFormatter(Formatter):
-    def __init__(self, length=0):
+    def __init__(self, length=0, display_filter=None):
         """
         Attributes
         ----------
@@ -133,11 +133,20 @@ class PcapFormatter(Formatter):
         traces (.pcap). Then the labels after performing transform should be [0, 0, 0, 1, 1, 1, 2, 2, 2].
         """
         super().__init__(length=length)
+        self._display_filter = display_filter
         self._buf['hosts'] = []
         self._buf['labels'] = []
 
+    @property
+    def display_filter(self):
+        return self._display_filter
+    
+    @display_filter.setter
+    def display_filter(self, display_filter):
+        self._display_filter = display_filter
+
     def load(self, file):
-        self._raw_buf = pyshark.FileCapture(input_file=file)
+        self._raw_buf = pyshark.FileCapture(input_file=file, display_filter=self.display_filter)
 
     def transform(self, host : str, label : int, *extractors : Extractor):
         """

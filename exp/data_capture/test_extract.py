@@ -126,7 +126,7 @@ def test_PcapFormatter_3():
     formatter = PcapFormatter(length=10)
 
     extractor = DirectionExtractor(src="192.168.5.5")
-    
+
     formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
@@ -150,6 +150,44 @@ def test_PcapFormatter_3():
                   [1, 1, 1, 1, 1, 1, -1, 1, 1, -1],
                   [1, 1, -1, 1, 1, 0, 0, 0, 0, 0],
                   [-1, -1, 1, -1, 1, -1, 1, 1, -1, -1]
+                  ])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
+def test_PcapFormatter_4():
+    """
+    This test covers reading the first 10 packets from multiple .pcap files, and extract the direction feature.
+    This test involves the use of display filter.
+    """
+    formatter = PcapFormatter(length=10, display_filter='tls')
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+    
+    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.transform("www.baidu.com", 0, extractor)
+
+    formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    formatter.transform("www.baidu.com", 0, extractor)
+
+    formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    formatter.transform("www.zhihu.com", 1, extractor)
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["www.baidu.com", "www.zhihu.com"]), 
+              "labels": np.array([0, 0, 1]), 
+              "direction": np.array([
+                  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [-1, -1, -1, 1, -1, -1, 0, 0, 0, 0]
                   ])}
     for k, v in loaded_data.items():
         assert np.all(target[k] == v)
