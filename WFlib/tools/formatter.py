@@ -8,11 +8,11 @@ class Extractor(object):
     """
     def __init__(self, name):
         self._name = name
-        self._buf = []
+        # self._buf = []
 
-    @property
-    def buf(self):
-        return self._buf
+    # @property
+    # def buf(self):
+    #     return self._buf
     
     @property
     def name(self):
@@ -35,11 +35,22 @@ class DirectionExtractor(Extractor):
         super().__init__(name=name)
         self._src = src 
 
-    def extract(self, pkt):
+    def extract(self, pkt, target : list):
+        """
+        Extract the direction info and store them into target.
+
+        Params
+        ------
+        pkt : packet
+            The packet to extract the feature.
+
+        target : list
+            The variable to store features.
+        """
         if 'ip' not in pkt:
             pass # Add some warning here
         src = pkt['ip'].src
-        self._buf.append(1 if src == self._src else -1) # 1 for egress, -1 for ingress
+        target.append(1 if src == self._src else -1) # 1 for egress, -1 for ingress
 
 
 class Formatter(object):
@@ -159,29 +170,33 @@ class PcapFormatter(Formatter):
             self._buf['hosts'].append(host)
 
         self._buf['labels'].append(label)
+        tmp_buf = dict()
 
         for extractor in extractors:
+            tmp_buf[extractor.name] = []
             # Initialize a new list for the given feature name
             if extractor.name not in self._buf:
                 self._buf[extractor.name] = []
         
+        # The temporaty buffer to hold the features extracted from current self._raw_buf
+
         for pkt in self._raw_buf:
             for extractor in extractors:
-                extractor.extract(pkt)
+                extractor.extract(pkt, tmp_buf[extractor.name])
 
         self._raw_buf.close()
 
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
             if self._length > 0:
-                if self._length <= len(extractor.buf): # Truncate
-                    self._buf[extractor.name].append(np.array(extractor.buf[:self._length]))
+                if self._length <= len(tmp_buf[extractor.name]): # Truncate
+                    self._buf[extractor.name].append(np.array(tmp_buf[extractor.name][:self._length]))
                 else:
                     padding = 0
-                    padding_len = self._length - len(extractor.buf)
-                    self._buf[extractor.name].append(np.array(extractor.buf + [padding] * padding_len))
+                    padding_len = self._length - len(tmp_buf[extractor.name])
+                    self._buf[extractor.name].append(np.array(tmp_buf[extractor.name] + [padding] * padding_len))
             else:
-                self._buf[extractor.name].append(np.array(extractor.buf))
+                self._buf[extractor.name].append(np.array(tmp_buf[extractor.name]))
 
     def dump(self, file):
         self._buf['hosts'] = np.array(self._buf['hosts'])
