@@ -75,7 +75,7 @@ def test_PcapFormatter():
     """
     extractor = DirectionExtractor(src="192.168.5.5")
 
-    formatter = PcapFormatter()
+    formatter = PcapFormatter(length=5)
     formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
@@ -87,7 +87,7 @@ def test_PcapFormatter():
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
 
-    target = {"hosts" : np.array(["www.baidu.com"]), "labels": np.array([0]), "direction": np.array([[1, 1, 1, 1, 1, 1, -1, 1, 1, -1]])}
+    target = {"hosts" : np.array(["www.baidu.com"]), "labels": np.array([0]), "direction": np.array([[1, 1, 1, 1, 1]])}
     for k, v in loaded_data.items():
         assert np.all(target[k] == v)
 

@@ -67,7 +67,7 @@ class Formatter(object):
             The buffer to hold the dict data, which should be the form like {lable_1: data_1, lable_2: data_2, ...},
             where label_X is a string, and data_X should be a np.ndarray.
         """
-        self._length = 0
+        self._length = length
         self._raw_buf = None
         self._buf = dict()
 
