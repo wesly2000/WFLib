@@ -22,6 +22,8 @@ from pyshark.capture.capture import Capture
 import time
 import threading
 from typing import Union
+from pathlib import Path
+import os
 
 gecko_path = r'/usr/local/bin/geckodriver'
 
@@ -44,10 +46,10 @@ def capture(url, timeout, iface, output_file, log_output=None):
     stop_event = threading.Event()
 
     def _sniff(iface, output_file):
-        print("Capturing Starts.......................")
+        # print("Capturing Starts.......................")
         capture = sniff(iface=iface, filter=common_filter, stop_filter=lambda _: stop_event.is_set())
         wrpcap(output_file, capture)
-        print("Capturing Ends.......................")
+        # print("Capturing Ends.......................")
 
     def browse(url, timeout, log_output=None):
         time.sleep(1) # maybe waiting for interface to be ready?
@@ -61,13 +63,13 @@ def capture(url, timeout, iface, output_file, log_output=None):
         options.set_preference("network.http.use-cache", False)
 
         driver = webdriver.Firefox(options=options, service=service)
-        print("Browsing Starts.......................")
+        # print("Browsing Starts.......................")
         driver.get(url)
         time.sleep(timeout)
         # Notify the capture thread that the capturing process is over.
         stop_event.set()
         driver.quit()
-        print("Browsing Ends.......................")
+        # print("Browsing Ends.......................")
 
     browse_thread = threading.Thread(target=browse, kwargs={"url": url, "timeout": timeout})
     capture_thread = threading.Thread(target=_sniff, kwargs={"iface": iface, "output_file": output_file})
@@ -77,6 +79,72 @@ def capture(url, timeout, iface, output_file, log_output=None):
 
     browse_thread.join()
     capture_thread.join()
+
+def batch_capture(base_dir, host_list, iface, 
+                  capture_fileter=common_filter, 
+                  repeat=20, 
+                  timeout=200, 
+                  log_output=None):
+    """
+    Capture the traffic of a list of hosts. The capturing and storing process is illustrated as follows.
+    Suppose the host_list = [www.baidu.com, www.zhihu.com, www.google.com], and the base_dir is set to
+    $home. Moreover, repeat is set to 2. Then, the resulting capture directory should be
+
+    ```
+    $home
+      |------www.baidu.com
+      |            |---------www.baidu.com_00.pcap
+      |            |---------www.baidu.com_01.pcap
+      |
+      |------www.zhihu.com
+      |            |---------www.zhihu.com_00.pcap
+      |            |---------www.zhihu.com_01.pcap
+      |
+      |------www.google.com
+      |             |---------www.google.com_00.pcap
+      |             |---------www.google.com_01.pcap
+    ```
+
+    NOTE: Currently, batch_capture by default using HTTPS for requesting. So the caller needs not
+    to add 'https://' before the hostname.
+
+    Params
+    ------
+    base_dir : str
+        The base directory to hold all captures for each hostname.
+
+    host_list : list
+        The list of hostnames to perform capture.
+
+    iface : str
+        The inferface to perform capture.
+
+    capture_filter : str
+        The capture filter using the BPF syntax to pass to tshark, common_filter is used by default.
+
+    repeat : int
+        The number of repetitive capture towards the same hostname, note that repeat should be large
+        enough (>=20) to obtain a stable website fingerprint.
+
+    timeout : int
+        The amount of seconds after which the headless browser would stop. Timeout should be large
+        enough for the website to load entirely.
+
+    log_output : str
+        The path for Selenium to record the debug log files.
+    """
+    proto_header = "https://"
+    # Handle directory, create if necessary. 
+    # Ref: https://stackoverflow.com/questions/273192/how-do-i-create-a-directory-and-any-missing-parent-directories
+
+    for host in host_list:
+        # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
+        # set exist_ok=True to avoid FileExistsError.
+        Path("{}/{}".format(base_dir, host)).mkdir(parents=True, exist_ok=True)
+        url = proto_header + host
+        for i in range(repeat):
+            output_file = os.path.join(base_dir, host, "{}_{:02d}.pcapng".format(host, i))
+            capture(url=url, timeout=timeout, iface=iface, output_file=output_file)
 
 def SNI_extract(capture : Capture) -> set:
     """
