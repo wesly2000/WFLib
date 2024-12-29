@@ -42,16 +42,16 @@ NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of t
 """
 common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80) and (tcp or udp)'
 
-def capture(url, timeout, iface, output_file, log_output=None):
+def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, log_output=None):
     stop_event = threading.Event()
 
     def _sniff(iface, output_file):
         # print("Capturing Starts.......................")
-        capture = sniff(iface=iface, filter=common_filter, stop_filter=lambda _: stop_event.is_set())
+        capture = sniff(iface=iface, filter=capture_filter, stop_filter=lambda _: stop_event.is_set())
         wrpcap(output_file, capture)
         # print("Capturing Ends.......................")
 
-    def browse(url, timeout, log_output=None):
+    def browse(url, timeout, log_output=log_output):
         time.sleep(1) # maybe waiting for interface to be ready?
         service = Service(executable_path=gecko_path, log_output=log_output)
 
@@ -144,7 +144,12 @@ def batch_capture(base_dir, host_list, iface,
         url = proto_header + host
         for i in range(repeat):
             output_file = os.path.join(base_dir, host, "{}_{:02d}.pcapng".format(host, i))
-            capture(url=url, timeout=timeout, iface=iface, output_file=output_file)
+            capture(url=url, 
+                    timeout=timeout, 
+                    iface=iface, 
+                    output_file=output_file,
+                    capture_filter=capture_fileter,
+                    log_output=log_output)
 
 def SNI_extract(capture : Capture) -> set:
     """
