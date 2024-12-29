@@ -23,6 +23,7 @@ import time
 import threading
 from typing import Union
 from pathlib import Path
+from urllib.parse import urlparse
 import os
 
 gecko_path = r'/usr/local/bin/geckodriver'
@@ -79,6 +80,25 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
 
     browse_thread.join()
     capture_thread.join()
+
+def read_host_list(file) -> list:
+    """
+    Read the hostname list file, remove the possible duplicates, and store the results into a list.
+    """
+    def strip_url(url : str) -> str:
+        """
+        To strip possible protocol descriptors in the URL, e.g., https://.
+        """
+        parsed_url = urlparse(url)
+        hostname = parsed_url.netloc
+        return hostname
+    host_list = []
+    with open(file, 'r') as f:
+        for line in f:
+            if line not in host_list: # Avoid possible dups
+                host_list.append(strip_url(line))
+
+    return host_list
 
 def batch_capture(base_dir, host_list, iface, 
                   capture_fileter=common_filter, 
