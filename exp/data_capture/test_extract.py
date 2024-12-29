@@ -1,6 +1,7 @@
 from WFlib.tools.capture import *
 from WFlib.tools.formatter import *
 import pyshark
+import io
 
 def test_SNI_extract():
     capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
@@ -78,4 +79,12 @@ def test_PcapFormatter():
     formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    print(loaded_data)

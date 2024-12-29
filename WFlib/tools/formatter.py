@@ -7,7 +7,16 @@ class Extractor(object):
     extractors used MUST inherit it.
     """
     def __init__(self, name):
-        self.name = name
+        self._name = name
+        self._buf = []
+
+    @property
+    def buf(self):
+        return self._buf
+    
+    @property
+    def name(self):
+        return self._name
 
     def extract(self):
         raise NotImplementedError
@@ -22,16 +31,15 @@ class DirectionExtractor(Extractor):
     src : str
         The source IP address for the extractor to decide ingress or egress.
     """
-    def __init__(self, src, name=None):
-        self.name = "direction" if name is None else name 
-        self.src = src 
+    def __init__(self, src, name="direction"):
+        super().__init__(name=name)
+        self._src = src 
 
     def extract(self, pkt):
+        if 'ip' not in pkt:
+            pass # Add some warning here
         src = pkt['ip'].src
-        if src == self.src: # egress packet
-            return 1
-        else:               # ingress packet
-            return -1
+        self.buf.append(1 if src == self.src else -1) # 1 for egress, -1 for ingress
 
 
 class Formatter(object):
@@ -129,10 +137,10 @@ class PcapFormatter(Formatter):
             ONLY packet-level extractors should be passed. Burst/Flow-level or higher level extractors
             should be used as extended methods.
         """
-        if host not in self.hosts:
-            self.hosts.append(host)
+        if host not in self.buf['hosts']:
+            self.buf['hosts'].append(host)
 
-        self.labels.append(label)
+        self.buf['labels'].append(label)
 
         for extractor in extractors:
             # Initialize a new list for the given feature name
@@ -141,7 +149,13 @@ class PcapFormatter(Formatter):
         
         for pkt in self.raw_buf:
             for extractor in extractors:
-                result = extractor.extract(pkt)
-                # Avoid possible non-IP packets
-                if result is not None:
-                    self.buf[extractor.name].append(result)
+                extractor.extract(pkt)
+
+    def dump(self, file):
+        self.buf['hosts'] = np.ndarray(self.buf['hosts'])
+        self.buf['labels'] = np.ndarray(self.buf['labels'])
+        for k in self.buf.keys():
+            if k not in ['hosts', 'labels']:
+                self.buf[k] = np.stack(self.buf[k])
+
+        super().dump(file)
