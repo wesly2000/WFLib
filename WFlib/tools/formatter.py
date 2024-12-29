@@ -53,10 +53,13 @@ class Formatter(object):
     All other formats that use the models, except for .npz itself, SHOULD inherit this class.
     All the classes that inherit this class MUST implement the load and transform methods.
     """
-    def __init__(self):
+    def __init__(self, length=0):
         """
         Attributes
         ----------
+        length : int
+            The expected length of each feature vector, once length > 0, the resulting feature vector would be
+            truncated or padded to the target length; if length <= 0, no truncation/padding is performed.
         raw_buf : Any
             The buffer to hold the loaded data in raw form.
 
@@ -64,8 +67,17 @@ class Formatter(object):
             The buffer to hold the dict data, which should be the form like {lable_1: data_1, lable_2: data_2, ...},
             where label_X is a string, and data_X should be a np.ndarray.
         """
+        self._length = 0
         self._raw_buf = None
         self._buf = dict()
+
+    @property
+    def length(self):
+        return self._length
+    
+    @length.setter
+    def length(self, length):
+        self._length = length
 
     def load(self, file):
         """
@@ -96,7 +108,7 @@ class Formatter(object):
         np.savez(file=file, **self._buf)
 
 class PcapFormatter(Formatter):
-    def __init__(self):
+    def __init__(self, length=0):
         """
         Attributes
         ----------
@@ -109,7 +121,7 @@ class PcapFormatter(Formatter):
         For example, for each of the hosts in [www.baidu.com, www.google.com, www.zhihu.com], we capture 3 request 
         traces (.pcap). Then the labels after performing transform should be [0, 0, 0, 1, 1, 1, 2, 2, 2].
         """
-        super().__init__()
+        super().__init__(length=length)
         self._buf['hosts'] = []
         self._buf['labels'] = []
 
@@ -123,6 +135,12 @@ class PcapFormatter(Formatter):
         NOTE: Ideally, the host and label parameters could be inferred from the filename. 
         However, the inference is considered not the duty of the formatter itself but that of
         the caller.
+
+        NOTE: We defer the truncation/padding to the point when the whole .pcap is iterated
+        through to keep the integrity lest some extractor depends on that. Later the lazy mode
+        might be introduced to make the integrity optional.
+
+        TODO: Introduce lazy mode.
 
         Params
         ------
@@ -155,7 +173,10 @@ class PcapFormatter(Formatter):
 
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
-            self._buf[extractor.name].append(np.array(extractor.buf))
+            if self._length > 0:
+                self._buf[extractor.name].append(np.array(extractor.buf[:self._length]))
+            else:
+                self._buf[extractor.name].append(np.array(extractor.buf))
 
     def dump(self, file):
         self._buf['hosts'] = np.array(self._buf['hosts'])
