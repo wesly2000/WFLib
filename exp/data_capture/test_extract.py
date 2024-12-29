@@ -126,14 +126,13 @@ def test_PcapFormatter_3():
     formatter = PcapFormatter(length=10)
 
     extractor = DirectionExtractor(src="192.168.5.5")
+    
     formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    extractor = DirectionExtractor(src="192.168.5.5")
     formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    extractor = DirectionExtractor(src="192.168.5.5")
     formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
     formatter.transform("www.zhihu.com", 1, extractor)
 
