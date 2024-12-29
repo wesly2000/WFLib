@@ -39,7 +39,7 @@ class DirectionExtractor(Extractor):
         if 'ip' not in pkt:
             pass # Add some warning here
         src = pkt['ip'].src
-        self.buf.append(1 if src == self.src else -1) # 1 for egress, -1 for ingress
+        self._buf.append(1 if src == self._src else -1) # 1 for egress, -1 for ingress
 
 
 class Formatter(object):
@@ -64,8 +64,8 @@ class Formatter(object):
             The buffer to hold the dict data, which should be the form like {lable_1: data_1, lable_2: data_2, ...},
             where label_X is a string, and data_X should be a np.ndarray.
         """
-        self.raw_buf = None
-        self.buf = dict()
+        self._raw_buf = None
+        self._buf = dict()
 
     def load(self, file):
         """
@@ -93,7 +93,7 @@ class Formatter(object):
         file : file|str
             The file path to be read.
         """
-        np.savez(file=file, **self.buf)
+        np.savez(file=file, **self._buf)
 
 class PcapFormatter(Formatter):
     def __init__(self):
@@ -110,13 +110,13 @@ class PcapFormatter(Formatter):
         traces (.pcap). Then the labels after performing transform should be [0, 0, 0, 1, 1, 1, 2, 2, 2].
         """
         super().__init__()
-        self.buf['hosts'] = []
-        self.buf['labels'] = []
+        self._buf['hosts'] = []
+        self._buf['labels'] = []
 
     def load(self, file):
-        self.raw_buf = pyshark.FileCapture(input_file=file)
+        self._raw_buf = pyshark.FileCapture(input_file=file)
 
-    def transform(self, host : str, label : int, *extractors):
+    def transform(self, host : str, label : int, *extractors : Extractor):
         """
         The transform method to extract features from self.raw_buf using the extractors. 
         
@@ -137,25 +137,29 @@ class PcapFormatter(Formatter):
             ONLY packet-level extractors should be passed. Burst/Flow-level or higher level extractors
             should be used as extended methods.
         """
-        if host not in self.buf['hosts']:
-            self.buf['hosts'].append(host)
+        if host not in self._buf['hosts']:
+            self._buf['hosts'].append(host)
 
-        self.buf['labels'].append(label)
+        self._buf['labels'].append(label)
 
         for extractor in extractors:
             # Initialize a new list for the given feature name
-            if extractor.name not in self.buf:
-                self.buf[extractor.name] = []
+            if extractor.name not in self._buf:
+                self._buf[extractor.name] = []
         
-        for pkt in self.raw_buf:
+        for pkt in self._raw_buf:
             for extractor in extractors:
                 extractor.extract(pkt)
 
+        # Dump features into ndarray, and append to self._buf[name]
+        for extractor in extractors:
+            self._buf[extractor.name].append(np.array(extractor.buf))
+
     def dump(self, file):
-        self.buf['hosts'] = np.ndarray(self.buf['hosts'])
-        self.buf['labels'] = np.ndarray(self.buf['labels'])
-        for k in self.buf.keys():
+        self._buf['hosts'] = np.array(self._buf['hosts'])
+        self._buf['labels'] = np.array(self._buf['labels'])
+        for k in self._buf.keys():
             if k not in ['hosts', 'labels']:
-                self.buf[k] = np.stack(self.buf[k])
+                self._buf[k] = np.stack(self._buf[k])
 
         super().dump(file)
