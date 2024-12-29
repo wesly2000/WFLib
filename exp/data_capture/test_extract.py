@@ -87,4 +87,8 @@ def test_PcapFormatter():
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
 
-    print(loaded_data)
+    target = {"hosts" : np.array(["www.baidu.com"]), "labels": np.array([0]), "direction": np.array([[1, 1, 1, 1, 1, 1, -1, 1, 1, -1]])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()

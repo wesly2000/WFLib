@@ -151,6 +151,8 @@ class PcapFormatter(Formatter):
             for extractor in extractors:
                 extractor.extract(pkt)
 
+        self._raw_buf.close()
+
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
             self._buf[extractor.name].append(np.array(extractor.buf))
