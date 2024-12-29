@@ -69,9 +69,10 @@ def test_stream_exclude_filter():
 
     assert display_filter == target
 
-def test_PcapFormatter():
+def test_PcapFormatter_1():
     """
     This test covers reading the first 10 packets from a .pcap file, and extract the direction feature.
+    This test makes feature vector length smaller than the number of packets to test truncation.
     """
     extractor = DirectionExtractor(src="192.168.5.5")
 
@@ -88,6 +89,31 @@ def test_PcapFormatter():
     loaded_data = np.load(buffer)
 
     target = {"hosts" : np.array(["www.baidu.com"]), "labels": np.array([0]), "direction": np.array([[1, 1, 1, 1, 1]])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
+def test_PcapFormatter_2():
+    """
+    This test covers reading the first 10 packets from a .pcap file, and extract the direction feature.
+    This test makes feature vector length larger than the number of packets to test padding.
+    """
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    formatter = PcapFormatter(length=12)
+    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.transform("www.baidu.com", 0, extractor)
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["www.baidu.com"]), "labels": np.array([0]), "direction": np.array([[1, 1, 1, 1, 1, 1, -1, 1, 1, -1, 0, 0]])}
     for k, v in loaded_data.items():
         assert np.all(target[k] == v)
 

@@ -174,7 +174,12 @@ class PcapFormatter(Formatter):
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
             if self._length > 0:
-                self._buf[extractor.name].append(np.array(extractor.buf[:self._length]))
+                if self._length <= len(extractor.buf): # Truncate
+                    self._buf[extractor.name].append(np.array(extractor.buf[:self._length]))
+                else:
+                    padding = 0
+                    padding_len = self._length - len(extractor.buf)
+                    self._buf[extractor.name].append(np.array(extractor.buf + [padding] * padding_len))
             else:
                 self._buf[extractor.name].append(np.array(extractor.buf))
 
