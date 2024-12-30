@@ -2,6 +2,8 @@ from WFlib.tools.capture import *
 from WFlib.tools.formatter import *
 import pyshark
 import io
+import json
+import tempfile
 
 def test_SNI_extract():
     capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
@@ -193,3 +195,37 @@ def test_PcapFormatter_4():
         assert np.all(target[k] == v)
 
     loaded_data.close()
+
+def test_PcapFormatter_5():
+    """
+    This test covers reading the first 10 packets from multiple .pcap files, and extract the direction feature.
+    This test involves the use of display filter.
+    """
+    formatter = PcapFormatter(display_filter='tls')
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+    
+    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.transform("www.baidu.com", 0, extractor)
+
+    formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    formatter.transform("www.baidu.com", 0, extractor)
+
+    formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    formatter.transform("www.zhihu.com", 1, extractor)
+
+    # Create an in-memory bytes buffer
+    with tempfile.NamedTemporaryFile(mode="r+", delete=True) as temp_file:
+        formatter.dump(temp_file.name)
+        loaded_data = json.load(temp_file)
+
+        target = {"hosts" : ["www.baidu.com", "www.zhihu.com"], 
+                "labels": [0, 0, 1], 
+                "direction": [
+                    [1],
+                    [1, 1],
+                    [-1, -1, -1, 1, -1, -1]
+                    ]}
+        for k, v in loaded_data.items():
+            for i in range(len(v)):
+                assert target[k][i] == v[i]
