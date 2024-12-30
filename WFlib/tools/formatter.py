@@ -1,5 +1,6 @@
 import numpy as np
 import pyshark
+import json
 from pathlib import Path
 
 class Extractor(object):
@@ -229,6 +230,11 @@ class PcapFormatter(Formatter):
                 self._buf[extractor.name].append(tmp_buf[extractor.name])
 
     def dump(self, file):
+        if self._raw:  # Dump the file to .json format
+            with open(file, "w") as f:
+                json.dump(self._buf, f)
+                return
+            
         self._buf['hosts'] = np.array(self._buf['hosts'])
         self._buf['labels'] = np.array(self._buf['labels'])
         for k in self._buf.keys():
