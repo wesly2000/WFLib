@@ -89,12 +89,16 @@ def read_host_list(file) -> list:
         """
         To strip possible protocol descriptors in the URL, e.g., https://.
         """
-        parsed_url = urlparse(url)
-        hostname = parsed_url.netloc
-        return hostname
+        if '://' in url: # TODO: Awkward check, make it more robust
+            parsed_url = urlparse(url)
+            hostname = parsed_url.netloc
+            return hostname
+        else:
+            return url
     host_list = []
     with open(file, 'r') as f:
         for line in f:
+            # print(line)
             if line not in host_list: # Avoid possible dups
                 host_list.append(strip_url(line))
 
