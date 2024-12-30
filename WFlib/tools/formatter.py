@@ -60,7 +60,8 @@ class Formatter(object):
     network files, e.g., .pcap, .csv, .json, etc.
 
     Since the models of WFlib and all other util functions request .npz format, this abstract class provides
-    interfaces to transform arbitrary format into .npz files.
+    interfaces to transform arbitrary format into .npz files. Optionally, the implement could also
+    extend methods that transform the original data into other file formats.
 
     All other formats that use the models, except for .npz itself, SHOULD inherit this class.
     All the classes that inherit this class MUST implement the load and transform methods.
@@ -87,9 +88,9 @@ class Formatter(object):
     def length(self):
         return self._length
     
-    @length.setter
-    def length(self, length):
-        self._length = length
+    # @length.setter
+    # def length(self, length):
+    #     self._length = length
 
     def load(self, file):
         """
@@ -120,6 +121,10 @@ class Formatter(object):
         np.savez(file=file, **self._buf)
 
 class PcapFormatter(Formatter):
+    """
+    The class to convert .pcap files to .npz files. Moreover, it supports to convert .pcap files to .json files for
+    raw feature extraction (See Attributes in __init__), where no truncation/padding would be applied.
+    """
     def __init__(self, length=0, display_filter=None):
         """
         Attributes
@@ -130,11 +135,26 @@ class PcapFormatter(Formatter):
         hosts : list
             The hostnames of the requested websites. The index of a host corresponds to the the value of the label.
 
+        display_filter : str
+            The display filter to apply to tshark when reading .pcap files.
+
+        raw : bool
+            The length of feature vector differs between .pcap files, since the number of valid packets differs.
+            It is convenient to leverage the length variable to extract aligned feature vectors using truncation/padding.
+            However, sometimes it may be useful, e.g., when the length is hard to decide, to extract the raw features 
+            without truncation/padding for further processing. 
+
+            Therefore, the raw attribute is introduced to indicate whether to truncate/pad the feature vectors. The
+            reason to introduce this redundant attribute is for semantic clarity. Note that when raw is True, the data
+            are stored in nested lists instead of concatenated ndarray. Further, the it would be dumped to .json files
+            instead of .npz for better flexibility.
+
         For example, for each of the hosts in [www.baidu.com, www.google.com, www.zhihu.com], we capture 3 request 
         traces (.pcap). Then the labels after performing transform should be [0, 0, 0, 1, 1, 1, 2, 2, 2].
         """
         super().__init__(length=length)
         self._display_filter = display_filter
+        self._raw = length <= 0
         self._buf['hosts'] = []
         self._buf['labels'] = []
 
@@ -198,7 +218,7 @@ class PcapFormatter(Formatter):
 
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
-            if self._length > 0:
+            if not self._raw:
                 if self._length <= len(tmp_buf[extractor.name]): # Truncate
                     self._buf[extractor.name].append(np.array(tmp_buf[extractor.name][:self._length]))
                 else:
@@ -206,7 +226,7 @@ class PcapFormatter(Formatter):
                     padding_len = self._length - len(tmp_buf[extractor.name])
                     self._buf[extractor.name].append(np.array(tmp_buf[extractor.name] + [padding] * padding_len))
             else:
-                self._buf[extractor.name].append(np.array(tmp_buf[extractor.name]))
+                self._buf[extractor.name].append(tmp_buf[extractor.name])
 
     def dump(self, file):
         self._buf['hosts'] = np.array(self._buf['hosts'])
