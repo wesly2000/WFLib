@@ -1,5 +1,6 @@
 import numpy as np
 import pyshark
+from pathlib import Path
 
 class Extractor(object):
     """
@@ -215,3 +216,34 @@ class PcapFormatter(Formatter):
                 self._buf[k] = np.stack(self._buf[k])
 
         super().dump(file)
+
+    def batch_extract(self, base_dir, output_file, *extractors):
+        """
+        Extract all the given features from all the files in the given base directory.
+
+        Params
+        ------
+        base_dir : str
+            The base directory to hold all the .pcap files, the directory structure should be
+            the same as that created by batch_capture.
+
+        output_file : str
+            The file to store all the features extracted.
+
+        extractors : Extractor
+            The extractors for feature extraction.
+        """
+        base_dir_path = Path(base_dir)
+        label = 0  # Processing a hostname will increase the label by 1
+
+        # Iterate over all subdirectories in the base directory
+        for subdir in base_dir_path.iterdir():
+            if subdir.is_dir():  # Check if it's a directory
+                host = str(subdir).split('/')[-1]
+                for file in subdir.iterdir():
+                    if file.is_file():  # Ensure it's a file
+                        self.load(file=file)
+                        self.transform(host, label, *extractors)
+                label += 1
+
+        self.dump(output_file)
