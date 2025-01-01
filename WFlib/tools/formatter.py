@@ -2,6 +2,7 @@ import numpy as np
 import pyshark
 import json
 from pathlib import Path
+import warnings
 
 class Extractor(object):
     """
@@ -84,6 +85,8 @@ class Formatter(object):
         self._length = length
         self._raw_buf = None
         self._buf = dict()
+        self._buf['hosts'] = []
+        self._buf['labels'] = []
 
     @property
     def length(self):
@@ -119,6 +122,13 @@ class Formatter(object):
         file : file|str
             The file path to be read.
         """
+
+        self._buf['hosts'] = np.array(self._buf['hosts'])
+        self._buf['labels'] = np.array(self._buf['labels'])
+        for k in self._buf.keys():
+            if k not in ['hosts', 'labels']:
+                self._buf[k] = np.stack(self._buf[k])
+
         np.savez(file=file, **self._buf)
 
 class PcapFormatter(Formatter):
@@ -156,8 +166,6 @@ class PcapFormatter(Formatter):
         super().__init__(length=length)
         self._display_filter = display_filter
         self._raw = length <= 0
-        self._buf['hosts'] = []
-        self._buf['labels'] = []
 
     @property
     def display_filter(self):
@@ -234,12 +242,6 @@ class PcapFormatter(Formatter):
             with open(file, "w") as f:
                 json.dump(self._buf, f)
                 return
-            
-        self._buf['hosts'] = np.array(self._buf['hosts'])
-        self._buf['labels'] = np.array(self._buf['labels'])
-        for k in self._buf.keys():
-            if k not in ['hosts', 'labels']:
-                self._buf[k] = np.stack(self._buf[k])
 
         super().dump(file)
 
@@ -273,3 +275,39 @@ class PcapFormatter(Formatter):
                 label += 1
 
         self.dump(output_file)
+
+class JsonFormatter(Formatter):
+    """
+    The formatter for .json files. This file includes some extensive utility functions for feature post-processing.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def load(self, file):
+        self._raw_buf = json.load(file)
+
+    def transform(self, debug=True, **kwargs):
+        """
+        The function to align each feature to the corresponding length. The kwargs is like {name_1: length_1, ..., name_n: length_n}.
+        For each name, this function tries to fetch them and ignore those not in the self._raw_buf with warnings. 
+        
+        Note that the special name 'labels' and 'hosts' should not be used since they are not features. If you find the warnings
+        annoying you could turn it off by setting debug=False.
+        """
+        if not debug:
+            warnings.filterwarnings('ignore')
+
+        for name, length in kwargs:
+            if name in ['labels', 'hosts']:
+                warnings.warn("Names 'labels' and 'hosts' are reserved and could not used for truncation/padding.")
+                continue 
+            elif name not in self._raw_buf:
+                warnings.warn(f"Key {name} is not present in the data.")
+                continue
+            else:
+                if length <= len(self._raw_buf[name]): # Truncate
+                    self._buf[name].append(np.array(self._raw_buf[name][:length]))
+                else:
+                    padding = 0
+                    padding_len = self._length - len(self._raw_buf[name])
+                    self._buf[name].append(np.array(self._raw_buf[name] + [padding] * padding_len))
