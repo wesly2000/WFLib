@@ -163,3 +163,47 @@ def test_PcapFormatter_5():
         for k, v in loaded_data.items():
             for i in range(len(v)):
                 assert target[k][i] == v[i]
+
+def test_JsonFormatter_1():
+    """
+    This test covers reading a .json file, and extract the direction feature, truncate/pad it to given length,
+    and dump it into a .npz file.
+    """
+    pcap_formatter = PcapFormatter(display_filter='tls')
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+    
+    pcap_formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    pcap_formatter.transform("www.baidu.com", 0, extractor)
+
+    pcap_formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    pcap_formatter.transform("www.baidu.com", 0, extractor)
+
+    pcap_formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    pcap_formatter.transform("www.zhihu.com", 1, extractor)
+
+    # Create an in-memory bytes buffer
+    with tempfile.NamedTemporaryFile(mode="r+", delete=True) as temp_file:
+        pcap_formatter.dump(temp_file.name)
+        json_formatter = JsonFormatter()
+        json_formatter.load(temp_file)
+        json_formatter.transform(direction=10)
+
+        # Create an in-memory bytes buffer
+        buffer = io.BytesIO()
+        json_formatter.dump(buffer)
+        buffer.seek(0)  # Move to the start of the buffer
+        loaded_data = np.load(buffer)
+
+        target = {"hosts" : np.array(["www.baidu.com", "www.zhihu.com"]), 
+                "labels": np.array([0, 0, 1]), 
+                "direction": np.array([
+                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [-1, -1, -1, 1, -1, -1, 0, 0, 0, 0]
+                    ])}
+        
+        for k, v in loaded_data.items():
+            assert np.all(target[k] == v)
+
+        loaded_data.close()

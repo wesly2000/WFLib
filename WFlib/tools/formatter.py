@@ -297,7 +297,10 @@ class JsonFormatter(Formatter):
         if not debug:
             warnings.filterwarnings('ignore')
 
-        for name, length in kwargs:
+        self._buf['labels'] = np.array(self._raw_buf['labels'])
+        self._buf['hosts'] = np.array(self._raw_buf['hosts'])
+
+        for name, length in kwargs.items():
             if name in ['labels', 'hosts']:
                 warnings.warn("Names 'labels' and 'hosts' are reserved and could not used for truncation/padding.")
                 continue 
@@ -307,9 +310,10 @@ class JsonFormatter(Formatter):
             else:
                 if name not in self._buf:
                     self._buf[name] = []  # Create corresponding container if not exist
-                if length <= len(self._raw_buf[name]): # Truncate
-                    self._buf[name].append(np.array(self._raw_buf[name][:length]))
-                else:
-                    padding = 0
-                    padding_len = self._length - len(self._raw_buf[name])
-                    self._buf[name].append(np.array(self._raw_buf[name] + [padding] * padding_len))
+                for feature in self._raw_buf[name]:  # Iterate through all the feature vectors and do truncation/padding
+                    if length <= len(feature): # Truncate
+                        self._buf[name].append(np.array(feature[:length]))
+                    else:
+                        padding = 0
+                        padding_len = length - len(feature)
+                        self._buf[name].append(np.array(feature + [padding] * padding_len))
