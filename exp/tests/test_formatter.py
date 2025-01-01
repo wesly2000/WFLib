@@ -207,3 +207,37 @@ def test_JsonFormatter_1():
             assert np.all(target[k] == v)
 
         loaded_data.close()
+
+def test_JsonFormatter_2():
+    """
+    This test covers the statistics with JsonFormatter.
+    """
+    pcap_formatter = PcapFormatter(display_filter='tls')
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+    
+    pcap_formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    pcap_formatter.transform("www.baidu.com", 0, extractor)
+
+    pcap_formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    pcap_formatter.transform("www.baidu.com", 0, extractor)
+
+    pcap_formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    pcap_formatter.transform("www.zhihu.com", 1, extractor)
+
+    # Create an in-memory bytes buffer
+    with tempfile.NamedTemporaryFile(mode="r+", delete=True) as temp_file:
+        pcap_formatter.dump(temp_file.name)
+        json_formatter = JsonFormatter()
+        json_formatter.load(temp_file)
+
+        hosts = json_formatter.get_feature_buf('hosts')
+        target = ["www.baidu.com", "www.zhihu.com"]
+        for i in range(len(target)):
+            assert hosts[i] == target[i]
+
+        target = [[1], [1, 1], [-1, -1, -1, 1, -1, -1]]
+        directions = json_formatter.get_feature_buf('direction')
+        for i in range(len(target)):
+            for j in range(len(target[i])):
+                assert target[i][j] == directions[i][j]

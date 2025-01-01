@@ -317,3 +317,9 @@ class JsonFormatter(Formatter):
                         padding = 0
                         padding_len = length - len(feature)
                         self._buf[name].append(np.array(feature + [padding] * padding_len))
+
+    def get_feature_buf(self, name):
+        """
+        Get the un-transformed feature buffer by its name.
+        """
+        return self._raw_buf[name]
