@@ -305,6 +305,8 @@ class JsonFormatter(Formatter):
                 warnings.warn(f"Key {name} is not present in the data.")
                 continue
             else:
+                if name not in self._buf:
+                    self._buf[name] = []  # Create corresponding container if not exist
                 if length <= len(self._raw_buf[name]): # Truncate
                     self._buf[name].append(np.array(self._raw_buf[name][:length]))
                 else:
