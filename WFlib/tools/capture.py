@@ -160,13 +160,12 @@ def batch_capture(base_dir, host_list, iface,
     proto_header = "https://"
     # Handle directory, create if necessary. 
     # Ref: https://stackoverflow.com/questions/273192/how-do-i-create-a-directory-and-any-missing-parent-directories
-
-    for host in host_list:
-        # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
-        # set exist_ok=True to avoid FileExistsError.
-        Path("{}/{}".format(base_dir, host)).mkdir(parents=True, exist_ok=True)
-        url = proto_header + host
-        for i in range(repeat):
+    for i in range(repeat):
+        for host in host_list:
+            # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
+            # set exist_ok=True to avoid FileExistsError.
+            Path("{}/{}".format(base_dir, host)).mkdir(parents=True, exist_ok=True)
+            url = proto_header + host
             output_file = os.path.join(base_dir, host, "{}_{:02d}.pcapng".format(host, i))
             capture(url=url, 
                     timeout=timeout, 
