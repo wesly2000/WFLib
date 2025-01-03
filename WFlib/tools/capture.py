@@ -238,6 +238,8 @@ def stream_exclude_filter(stream_numbers : Union[list, set]):
     return display_filter
 
 def contains_SNI(SNIs, pkt):
+    if SNIs is None or len(SNIs) == 0:
+        return False
     result = False
 
     if 'TLS' in pkt:
