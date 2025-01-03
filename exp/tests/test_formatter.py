@@ -164,6 +164,39 @@ def test_PcapFormatter_5():
             for i in range(len(v)):
                 assert target[k][i] == v[i]
 
+def test_PcapFormatter_6():
+    """
+    This test covers reading the first 10 packets from multiple .pcap files, and extract the direction feature.
+    This test involves the use of batch_extract.
+    """
+    formatter = PcapFormatter(length=10)
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+    
+    formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
+
+    formatter.dump(buffer)
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["realworld_dataset", "simple_dataset"]), 
+              "labels": np.array([0, 1, 1, 1]), 
+              "direction": np.array([
+                  [1, 1, 1, 1, 1, -1, 1, 1, -1, -1],
+                  [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [-1, -1, 1, -1, 1, -1, 1, 1, -1, -1]
+                  ])}
+    
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
+
 def test_JsonFormatter_1():
     """
     This test covers reading a .json file, and extract the direction feature, truncate/pad it to given length,
