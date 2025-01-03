@@ -1,8 +1,10 @@
 from WFlib.tools.capture import *
 import pyshark
 
+baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
+
 def test_SNI_extract():
-    capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
+    capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
     SNIs = SNI_extract(capture)
 
     target = {
@@ -20,7 +22,7 @@ def test_SNI_extract():
     capture.close()
 
 def test_stream_number_extract():
-    capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
+    capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
     SNIs = SNI_extract(capture)
     
     stream_number = stream_number_extract(capture=capture, check=lambda pkt: contains_SNI(SNIs, pkt))
@@ -55,20 +57,19 @@ def test_stream_exclude_filter():
 
     assert display_filter == target
 
-def test_apply_exclude_filter():
+def test_SNI_exclude_filter():
     SNIs = []
     with open("exp/data_extract/filter.txt", 'r') as f:
         for line in f:
             SNIs.append(line.strip())
 
-    client_hello_capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
+    client_hello_capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
     stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
     client_hello_capture.close()
 
-    file = "exp/test_dataset/www.baidu.com_proxied.pcapng"
-    display_filter = SNI_exclude_filter(file, SNIs)
+    display_filter = SNI_exclude_filter(baidu_proxied_file, SNIs)
 
-    capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter=display_filter)
+    capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter=display_filter)
     for pkt in capture:
         if 'TCP' in pkt:
             assert pkt['TCP'].stream not in stream_numbers 

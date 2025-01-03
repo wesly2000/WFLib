@@ -13,7 +13,7 @@ def test_PcapFormatter_1():
     extractor = DirectionExtractor(src="192.168.5.5")
 
     formatter = PcapFormatter(length=5)
-    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
     # Create an in-memory bytes buffer
@@ -38,7 +38,7 @@ def test_PcapFormatter_2():
     extractor = DirectionExtractor(src="192.168.5.5")
 
     formatter = PcapFormatter(length=12)
-    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
     # Create an in-memory bytes buffer
@@ -63,13 +63,13 @@ def test_PcapFormatter_3():
 
     extractor = DirectionExtractor(src="192.168.5.5")
 
-    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_02.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_03.pcapng")
     formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
@@ -101,13 +101,13 @@ def test_PcapFormatter_4():
 
     extractor = DirectionExtractor(src="192.168.5.5")
     
-    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_02.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_03.pcapng")
     formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
@@ -139,13 +139,13 @@ def test_PcapFormatter_5():
 
     extractor = DirectionExtractor(src="192.168.5.5")
     
-    formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_02.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 
-    formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    formatter.load("exp/test_dataset/simple_dataset/simple_pcap_03.pcapng")
     formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
@@ -173,13 +173,13 @@ def test_JsonFormatter_1():
 
     extractor = DirectionExtractor(src="192.168.5.5")
     
-    pcap_formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    pcap_formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     pcap_formatter.transform("www.baidu.com", 0, extractor)
 
-    pcap_formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    pcap_formatter.load("exp/test_dataset/simple_dataset/simple_pcap_02.pcapng")
     pcap_formatter.transform("www.baidu.com", 0, extractor)
 
-    pcap_formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    pcap_formatter.load("exp/test_dataset/simple_dataset/simple_pcap_03.pcapng")
     pcap_formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
@@ -216,13 +216,13 @@ def test_JsonFormatter_2():
 
     extractor = DirectionExtractor(src="192.168.5.5")
     
-    pcap_formatter.load("exp/test_dataset/simple_pcap_01.pcapng")
+    pcap_formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     pcap_formatter.transform("www.baidu.com", 0, extractor)
 
-    pcap_formatter.load("exp/test_dataset/simple_pcap_02.pcapng")
+    pcap_formatter.load("exp/test_dataset/simple_dataset/simple_pcap_02.pcapng")
     pcap_formatter.transform("www.baidu.com", 0, extractor)
 
-    pcap_formatter.load("exp/test_dataset/simple_pcap_03.pcapng")
+    pcap_formatter.load("exp/test_dataset/simple_dataset/simple_pcap_03.pcapng")
     pcap_formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
