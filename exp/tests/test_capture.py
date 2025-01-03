@@ -65,7 +65,8 @@ def test_apply_exclude_filter():
     stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
     client_hello_capture.close()
 
-    display_filter = stream_exclude_filter(stream_numbers)
+    file = "exp/test_dataset/www.baidu.com_proxied.pcapng"
+    display_filter = SNI_exclude_filter(file, SNIs)
 
     capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter=display_filter)
     for pkt in capture:

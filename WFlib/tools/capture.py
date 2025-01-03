@@ -250,3 +250,28 @@ def contains_SNI(SNIs, pkt):
                 return True
             
     return result
+
+def SNI_exclude_filter(file, SNIs):
+    """
+    Create a display filter for the given .pcap file which exclude all the TCP streams that contains the SNI in SNIs.
+
+    Params
+    ------
+    file : str
+        The file path to the .pcap(ng) file.
+
+    SNIs : list
+        The SNIs for each of which to exclude the corresponding TCP stream.
+
+    Returns
+    -------
+    filter : str
+        The display filter created from the .pcap file and SNIs.
+    """
+    if SNIs is None or len(SNIs) == 0:
+        return None
+    client_hello_capture = pyshark.FileCapture(input_file=file, display_filter="tls.handshake.type == 1")
+    stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
+    client_hello_capture.close()
+    display_filter = stream_exclude_filter(stream_numbers)
+    return display_filter

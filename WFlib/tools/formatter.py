@@ -3,6 +3,7 @@ import pyshark
 import json
 from pathlib import Path
 import warnings
+from WFlib.tools.capture import SNI_exclude_filter
 
 class Extractor(object):
     """
@@ -245,7 +246,7 @@ class PcapFormatter(Formatter):
 
         super().dump(file)
 
-    def batch_extract(self, base_dir, output_file, *extractors):
+    def batch_extract(self, base_dir, output_file, SNIs=None, *extractors):
         """
         Extract all the given features from all the files in the given base directory.
 
@@ -270,6 +271,8 @@ class PcapFormatter(Formatter):
                 host = str(subdir).split('/')[-1]
                 for file in subdir.iterdir():
                     if file.is_file():  # Ensure it's a file
+                        display_filter = SNI_exclude_filter(file, SNIs)
+                        self.display_filter = display_filter
                         self.load(file=file)
                         self.transform(host, label, *extractors)
                 label += 1
