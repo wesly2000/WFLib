@@ -236,3 +236,15 @@ def stream_exclude_filter(stream_numbers : Union[list, set]):
     display_filter = " and ".join(extended_stream_numbers)
 
     return display_filter
+
+def contains_SNI(SNIs, pkt):
+    result = False
+
+    if 'TLS' in pkt:
+        tls_layer = pkt['TLS']
+        if hasattr(tls_layer, 'handshake_extensions_server_name'):
+            SNI = tls_layer.handshake_extensions_server_name
+            if SNI in SNIs:
+                return True
+            
+    return result

@@ -22,20 +22,8 @@ def test_SNI_extract():
 def test_stream_number_extract():
     capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
     SNIs = SNI_extract(capture)
-
-    def contains_SNI(pkt):
-        result = False
-
-        if 'TLS' in pkt:
-            tls_layer = pkt['TLS']
-            if hasattr(tls_layer, 'handshake_extensions_server_name'):
-                SNI = tls_layer.handshake_extensions_server_name
-                if SNI in SNIs:
-                    return True
-                
-        return result
     
-    stream_number = stream_number_extract(capture=capture, check=contains_SNI)
+    stream_number = stream_number_extract(capture=capture, check=lambda pkt: contains_SNI(SNIs, pkt))
 
     target = {'1', '4', '3', '10', '11', '13', '14', '65', '68', '67', '66', '69', '97', '101', '105', '123'}
 
@@ -66,3 +54,22 @@ def test_stream_exclude_filter():
     target = "tcp.stream != 1 and tcp.stream != 4 and tcp.stream != 3"
 
     assert display_filter == target
+
+def test_apply_exclude_filter():
+    SNIs = []
+    with open("exp/data_extract/filter.txt", 'r') as f:
+        for line in f:
+            SNIs.append(line.strip())
+
+    client_hello_capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter="tls.handshake.type == 1")
+    stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
+    client_hello_capture.close()
+
+    display_filter = stream_exclude_filter(stream_numbers)
+
+    capture = pyshark.FileCapture(input_file="exp/test_dataset/www.baidu.com_proxied.pcapng", display_filter=display_filter)
+    for pkt in capture:
+        if 'TCP' in pkt:
+            assert pkt['TCP'].stream not in stream_numbers 
+
+    capture.close()
