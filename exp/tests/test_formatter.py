@@ -12,7 +12,7 @@ def test_PcapFormatter_1():
     """
     extractor = DirectionExtractor(src="192.168.5.5")
 
-    formatter = PcapFormatter(length=5, only_summaries=True)
+    formatter = PcapFormatter(length=5)
     formatter.load("exp/test_dataset/simple_dataset/simple_pcap_01.pcapng")
     formatter.transform("www.baidu.com", 0, extractor)
 

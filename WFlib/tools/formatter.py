@@ -39,7 +39,7 @@ class DirectionExtractor(Extractor):
         super().__init__(name=name)
         self._src = src 
 
-    def extract(self, pkt, target : list, only_summaries=True):
+    def extract(self, pkt, target : list):
         """
         Extract the direction info and store them into target.
 
@@ -51,13 +51,9 @@ class DirectionExtractor(Extractor):
         target : list
             The variable to store features.
         """
-        if only_summaries:
-            # When only_summaries == True, pkt.source should be used.
-            src = pkt.source
-        else:
-            if 'ip' not in pkt:
-                pass # Add some warning here
-            src = pkt['ip'].src
+        if 'ip' not in pkt:
+            pass # Add some warning here
+        src = pkt['ip'].src
 
         target.append(1 if src == self._src else -1) # 1 for egress, -1 for ingress
 
@@ -142,7 +138,7 @@ class PcapFormatter(Formatter):
     The class to convert .pcap files to .npz files. Moreover, it supports to convert .pcap files to .json files for
     raw feature extraction (See Attributes in __init__), where no truncation/padding would be applied.
     """
-    def __init__(self, length=0, only_summaries=False, keep_packets=True, display_filter=None):
+    def __init__(self, length=0, keep_packets=False, display_filter=None):
         """
         Attributes
         ----------
@@ -155,18 +151,8 @@ class PcapFormatter(Formatter):
         display_filter : str
             The display filter to apply to tshark when reading .pcap files.
 
-        only_summaries : bool
-            Whether to read packets with only summarizing info. This property is a PyShark attribute, which allows
-            a much faster reading but much fewer messages. These messages include:
-            pkt.delta         pkt.info          pkt.no            pkt.stream        pkt.window
-            pkt.destination   pkt.ip id         pkt.protocol      pkt.summary_line
-            pkt.host          pkt.length        pkt.source        pkt.time,
-            where pkt is a packet generated from __next__ of capture.
-
         keep_packets : bool
             Whether to keep packets in the capture. Setting to False largely reduce memory consumption.
-
-        Ref: https://www.cnblogs.com/cscshi/p/15705070.html
 
         raw : bool
             The length of feature vector differs between .pcap files, since the number of valid packets differs.
@@ -184,7 +170,6 @@ class PcapFormatter(Formatter):
         """
         super().__init__(length=length)
         self._display_filter = display_filter
-        self._only_summaries = only_summaries
         self._keep_packets = keep_packets
         self._raw = length <= 0
 
@@ -199,7 +184,6 @@ class PcapFormatter(Formatter):
     def load(self, file):
         self._raw_buf = pyshark.FileCapture(input_file=file, 
                                             display_filter=self.display_filter,
-                                            only_summaries=self._only_summaries,
                                             keep_packets=self._keep_packets)
 
     def transform(self, host : str, label : int, *extractors : Extractor):
@@ -245,7 +229,7 @@ class PcapFormatter(Formatter):
 
         for pkt in self._raw_buf:
             for extractor in extractors:
-                extractor.extract(pkt, tmp_buf[extractor.name], only_summaries=self._only_summaries)
+                extractor.extract(pkt, tmp_buf[extractor.name])
 
         self._raw_buf.close()
 
