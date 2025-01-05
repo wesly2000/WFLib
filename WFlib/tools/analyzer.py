@@ -2,6 +2,7 @@ from captum import attr
 from tqdm import tqdm
 import torch
 import numpy as np
+import pyshark 
 
 def feature_attr(model, attr_method, X, y, num_classes):
     """
@@ -50,3 +51,14 @@ def feature_attr(model, attr_method, X, y, num_classes):
     
     attr_values = np.array(attr_values)
     return attr_values  # Return the attribution values
+
+def packet_count(file, display_filter=None):
+    """
+    Count the number of packets in the given .pcap file, possible display filter may be applied.
+    """
+    cap = pyshark.FileCapture(input_file=file, display_filter=display_filter, keep_packets=False)
+    cnt = 0
+    for _ in cap:
+        cnt += 1
+
+    return cnt
