@@ -100,7 +100,7 @@ def read_host_list(file) -> list:
         for line in f:
             # print(line)
             if line not in host_list: # Avoid possible dups
-                host_list.append(strip_url(line))
+                host_list.append(strip_url(line.strip()))
 
     return host_list
 
@@ -164,6 +164,7 @@ def batch_capture(base_dir, host_list, iface,
         for host in host_list:
             # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
             # set exist_ok=True to avoid FileExistsError.
+            host = host.strip()
             Path("{}/{}".format(base_dir, host)).mkdir(parents=True, exist_ok=True)
             url = proto_header + host
             output_file = os.path.join(base_dir, host, "{}_{:02d}.pcapng".format(host, i))
