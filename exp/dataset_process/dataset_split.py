@@ -13,6 +13,7 @@ np.random.seed(fix_seed)
 parser = argparse.ArgumentParser(description="WFlib")
 parser.add_argument("--dataset", type=str, required=True, default="Undefended", help="Dataset name")
 parser.add_argument("--use_stratify", type=str, default="True", help="Whether to use stratify")
+parser.add_argument("-f", "--feature", type=str, default="X", help="The name of features to use")
 
 # Parse arguments
 args = parser.parse_args()
@@ -25,8 +26,14 @@ assert os.path.exists(infile), f"{infile} does not exist!"
 # Load dataset from the specified .npz file
 print("loading...", infile)
 data = np.load(infile)
-X = data["X"]
-y = data["y"]
+X = data[args.feature]
+try:
+    y = data["y"]
+except KeyError:
+    try:
+        y = data["label"]
+    except KeyError:
+        y = data["labels"]
 
 # Ensure labels are continuous
 num_classes = len(np.unique(y))
