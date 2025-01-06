@@ -56,9 +56,9 @@ def packet_count(file, display_filter=None):
     """
     Count the number of packets in the given .pcap file, possible display filter may be applied.
     """
-    cap = pyshark.FileCapture(input_file=file, display_filter=display_filter, keep_packets=False)
+    cap = pyshark.FileCapture(input_file=file, display_filter=display_filter, only_summaries=True, keep_packets=False)
     cnt = 0
     for _ in cap:
         cnt += 1
-
+    cap.close()
     return cnt
