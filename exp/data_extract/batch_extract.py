@@ -8,6 +8,7 @@ NOTE: The extractors are now hard-coded into the script. Passing extractors as f
 """
 
 from WFlib.tools.formatter import PcapFormatter, DirectionExtractor
+from WFlib.tools.capture import read_host_list
 import argparse
 
 if __name__ == '__main__':
@@ -23,4 +24,7 @@ if __name__ == '__main__':
 
     extractor = DirectionExtractor(src=args.src)
 
-    formatter.batch_extract(args.dir, args.output_file, extractor)
+    filter_file = "exp/data_extract/filter.txt"
+    SNIs = read_host_list(filter_file)
+
+    formatter.batch_extract(args.dir, args.output_file, SNIs, extractor)

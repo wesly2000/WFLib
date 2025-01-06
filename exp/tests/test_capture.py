@@ -58,10 +58,7 @@ def test_stream_exclude_filter():
     assert display_filter == target
 
 def test_SNI_exclude_filter():
-    SNIs = []
-    with open("exp/data_extract/filter.txt", 'r') as f:
-        for line in f:
-            SNIs.append(line.strip())
+    SNIs = read_host_list("exp/data_extract/filter.txt")
 
     client_hello_capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
     stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
