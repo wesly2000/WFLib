@@ -21,6 +21,8 @@ from pyshark.capture.capture import Capture
 
 import time
 import threading
+import multiprocessing
+import subprocess
 from typing import Union
 from pathlib import Path
 from urllib.parse import urlparse
@@ -45,18 +47,34 @@ NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of t
 common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80) and (tcp or udp)'
 
 def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, log_output=None):
-    stop_event = threading.Event()
+    stop_event = multiprocessing.Event()
 
-    def _sniff(iface, output_file):
+    def _sniff():
         # print("Capturing Starts.......................")
-        start_time = time.time()
-        capture = sniff(iface=iface, filter=capture_filter, stop_filter=lambda _: stop_event.is_set())
-        end_sniff_time = time.time()
-        print(f"Sniff duration: {end_sniff_time-start_time:.2f} seconds.")
-        wrpcap(output_file, capture)
+        # start_time = time.time()
+        tshark_process = subprocess.Popen(
+            ['tshark', '-i', iface, '-f', capture_filter, '-w', output_file,],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL 
+        )
+        try:
+            # Monitor the event
+            while not stop_event.is_set():
+                time.sleep(.1)  # Poll every second
+            tshark_process.terminate()
+            tshark_process.wait()
+        except Exception as e:
+            print(f"Error in subprocess: {e}")
+        finally:
+            if tshark_process.poll() is None:
+                tshark_process.terminate()
+
+        # end_time = time.time()
+        # print(f"Sniff duration: {end_time-start_time:.2f} seconds.")
+        # wrpcap(output_file, capture)
         # print("Capturing Ends.......................")
 
-    def browse(url, timeout, log_output=log_output):
+    def browse():
         time.sleep(2) # maybe waiting for interface to be ready?
         
         service = Service(executable_path=gecko_path, log_output=log_output)
@@ -80,14 +98,14 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
 
         # print("Browsing Ends.......................")
 
-    capture_thread = threading.Thread(target=_sniff, kwargs={"iface": iface, "output_file": output_file})
-    browse_thread = threading.Thread(target=browse, kwargs={"url": url, "timeout": timeout})
+    browse_thread = threading.Thread(target=browse)
+    monitor_process = multiprocessing.Process(target=_sniff)
     
-    capture_thread.start()
+    monitor_process.start()
     browse_thread.start()
 
     browse_thread.join()
-    capture_thread.join()
+    monitor_process.join()
 
 def read_host_list(file) -> list:
     """
