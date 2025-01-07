@@ -25,6 +25,7 @@ from typing import Union
 from pathlib import Path
 from urllib.parse import urlparse
 import os
+import time
 
 gecko_path = r'/usr/local/bin/geckodriver'
 
@@ -48,12 +49,16 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
 
     def _sniff(iface, output_file):
         # print("Capturing Starts.......................")
+        start_time = time.time()
         capture = sniff(iface=iface, filter=capture_filter, stop_filter=lambda _: stop_event.is_set())
+        end_sniff_time = time.time()
+        print(f"Sniff duration: {end_sniff_time-start_time:.2f} seconds.")
         wrpcap(output_file, capture)
         # print("Capturing Ends.......................")
 
     def browse(url, timeout, log_output=log_output):
-        time.sleep(1) # maybe waiting for interface to be ready?
+        time.sleep(2) # maybe waiting for interface to be ready?
+        
         service = Service(executable_path=gecko_path, log_output=log_output)
 
         options = Options()
@@ -68,13 +73,16 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
         driver.get(url)
         time.sleep(timeout)
         # Notify the capture thread that the capturing process is over.
-        stop_event.set()
         driver.quit()
+        
+        time.sleep(2)
+        stop_event.set()
+
         # print("Browsing Ends.......................")
 
-    browse_thread = threading.Thread(target=browse, kwargs={"url": url, "timeout": timeout})
     capture_thread = threading.Thread(target=_sniff, kwargs={"iface": iface, "output_file": output_file})
-
+    browse_thread = threading.Thread(target=browse, kwargs={"url": url, "timeout": timeout})
+    
     capture_thread.start()
     browse_thread.start()
 
@@ -168,12 +176,17 @@ def batch_capture(base_dir, host_list, iface,
             Path("{}/{}".format(base_dir, host)).mkdir(parents=True, exist_ok=True)
             url = proto_header + host
             output_file = os.path.join(base_dir, host, "{}_{:02d}.pcapng".format(host, i))
+            start_time = time.time()
+            
             capture(url=url, 
                     timeout=timeout, 
                     iface=iface, 
                     output_file=output_file,
                     capture_filter=capture_fileter,
                     log_output=log_output)
+            
+            end_time = time.time()
+            print(f"Captured {host}_{i}.pcapng, time duration {end_time-start_time:.2f} seconds.")
 
 def SNI_extract(capture : Capture) -> set:
     """
