@@ -18,6 +18,7 @@ from selenium.webdriver.firefox.service import Service
 from scapy.all import sniff, wrpcap
 import pyshark
 from pyshark.capture.capture import Capture
+import urllib3
 
 import time
 import threading
@@ -28,6 +29,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import os
 import time
+import warnings
 
 gecko_path = r'/usr/local/bin/geckodriver'
 
@@ -88,15 +90,19 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
 
         driver = webdriver.Firefox(options=options, service=service)
         # print("Browsing Starts.......................")
-        driver.get(url)
-        time.sleep(timeout)
-        # Notify the capture thread that the capturing process is over.
+        try:
+            driver.get(url)
+            time.sleep(timeout)
+        except urllib3.exceptions.ReadTimeoutError as e:
+            warnings.warn(f"The file {output_file} raises the exception: {e}")
+            if log_output is not None:
+                with open(log_output, 'a+') as f:
+                    f.write(f"{output_file}\n")
         driver.quit()
         
         time.sleep(2)
+        # Notify the capture thread that the capturing process is over.
         stop_event.set()
-
-        # print("Browsing Ends.......................")
 
     browse_thread = threading.Thread(target=browse)
     monitor_process = multiprocessing.Process(target=_sniff)
@@ -203,8 +209,10 @@ def batch_capture(base_dir, host_list, iface,
                     capture_filter=capture_fileter,
                     log_output=log_output)
             
+            time.sleep(10)  # Avoid previous session traffic to affect succeeding capture.
+            
             end_time = time.time()
-            print(f"Captured {host}_{i}.pcapng, time duration {end_time-start_time:.2f} seconds.")
+            print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
 
 def SNI_extract(capture : Capture) -> set:
     """
