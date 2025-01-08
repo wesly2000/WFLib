@@ -15,7 +15,6 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 
-from scapy.all import sniff, wrpcap
 import pyshark
 from pyshark.capture.capture import Capture
 import urllib3
@@ -52,8 +51,6 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
     stop_event = multiprocessing.Event()
 
     def _sniff():
-        # print("Capturing Starts.......................")
-        # start_time = time.time()
         tshark_process = subprocess.Popen(
             ['tshark', '-i', iface, '-f', capture_filter, '-w', output_file,],
             stdout=subprocess.DEVNULL,
@@ -71,15 +68,10 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
             if tshark_process.poll() is None:
                 tshark_process.terminate()
 
-        # end_time = time.time()
-        # print(f"Sniff duration: {end_time-start_time:.2f} seconds.")
-        # wrpcap(output_file, capture)
-        # print("Capturing Ends.......................")
-
     def browse():
         time.sleep(2) # maybe waiting for interface to be ready?
         
-        service = Service(executable_path=gecko_path, log_output=log_output)
+        service = Service(executable_path=gecko_path, log_output=None)
 
         options = Options()
         options.add_argument("--headless") 
@@ -135,6 +127,51 @@ def read_host_list(file) -> list:
                 host_list.append(strip_url(line.strip()))
 
     return host_list
+
+def decide_output_file_idx(directory : Path) -> int:
+    """
+    Utility function to enable continuous capture, i.e., capture on the same base_dir for multiple times.
+    The idea here is to check if the host has been captured previously. If so, fetch the .pcap(ng) file name
+    with the largest index, and plus 1 on it for appending. Otherwise, simply return base for directory creation.
+
+    For example, if the original directory is as follows.
+    ```
+    base_dir
+       |---www.baidu.com
+       |         |---www.baidu.com_00.pcapng
+       |         |---www.baidu.com_02.pcapng (Note that 01 was missing due to some reason)
+       |
+       |---www.google.com
+       |         |---www.google.com_00.pcapng
+    ```
+
+    And the capture list is ['www.baidu.com', 'www.google.com', 'www.zhihu.com'], repeat is set to 1. Then, after performing
+    capture, the directory should be as follows.
+    ```
+    base_dir
+       |---www.baidu.com
+       |         |---www.baidu.com_00.pcapng
+       |         |---www.baidu.com_02.pcapng 
+       |         |---www.baidu.com_03.pcapng
+       |
+       |---www.google.com
+       |         |---www.google.com_00.pcapng
+       |         |---www.google.com_01.pcapng
+       |
+       |---www.zhihu.com
+       |         |---www.zhihu.com_00.pcapng
+    ```
+    """
+    
+    if not os.path.exists(directory):
+        return 0 
+    max_idx = 0
+    for file in directory.iterdir():
+        if file.is_file() and file.suffix in ['.pcapng', '.pcap']:  # Ensure it's a .pcap(ng) file
+            cur_idx = int(file.name.split('_')[-1].split('.')[0])
+            max_idx = max(cur_idx, max_idx)
+
+    return 1 + max_idx
 
 def batch_capture(base_dir, host_list, iface, 
                   capture_fileter=common_filter, 
@@ -197,10 +234,14 @@ def batch_capture(base_dir, host_list, iface,
             # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
             # set exist_ok=True to avoid FileExistsError.
             host = host.strip()
-            Path("{}/{}".format(base_dir, host)).mkdir(parents=True, exist_ok=True)
+            output_dir = Path("{}/{}".format(base_dir, host))
+
+            output_file_idx = decide_output_file_idx(directory=output_dir)
+            output_file = os.path.join(base_dir, host, "{}_{}.pcapng".format(host, output_file_idx))
+            
+            output_dir.mkdir(parents=True, exist_ok=True)
             url = proto_header + host
-            output_file = os.path.join(base_dir, host, "{}_{:02d}.pcapng".format(host, i))
-            start_time = time.time()
+            # start_time = time.time()
             
             capture(url=url, 
                     timeout=timeout, 
@@ -209,10 +250,10 @@ def batch_capture(base_dir, host_list, iface,
                     capture_filter=capture_fileter,
                     log_output=log_output)
             
-            time.sleep(10)  # Avoid previous session traffic to affect succeeding capture.
+            time.sleep(5)  # Avoid previous session traffic to affect succeeding capture.
             
-            end_time = time.time()
-            print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
+            # end_time = time.time()
+            # print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
 
 def SNI_extract(capture : Capture) -> set:
     """

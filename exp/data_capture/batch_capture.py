@@ -2,9 +2,10 @@
 This file is used to test batch_capture. Also, it could be used as a simple script to for capture.
 """
 
-from WFlib.tools.capture import batch_capture, read_host_list
+from WFlib.tools.capture import batch_capture, read_host_list, decide_output_file_idx
 import argparse
 import os
+from pathlib import Path
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -18,6 +19,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     ssl_keylog_file = os.path.join(args.dir, "keylog.txt")
+    log_output = os.path.join(args.dir, "log.txt")
     host_list = read_host_list(args.list)
 
     if args.dry_run:
@@ -25,9 +27,19 @@ if __name__ == '__main__':
         for i in range(args.repeat):
             for host in host_list:
                 host = host.strip()
-                output_file = os.path.join(args.dir, host, "{}_{:02d}.pcapng".format(host, i))
+                output_dir = Path("{}/{}".format(args.dir, host))
+                output_file_idx = decide_output_file_idx(output_dir)
+                # NOTE: In dry-run mode, since the .pcap(ng) files will not be created, we should shift
+                # the index with i to get the correct filenames.
+                output_file = os.path.join(args.dir, host, "{}_{}.pcapng".format(host, output_file_idx + i))
                 print(output_file)
-        print(f"{ssl_keylog_file}")
+        print(ssl_keylog_file)
+        print(log_output)
     else:
         os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
-        batch_capture(base_dir=args.dir, host_list=host_list, iface=args.iface, repeat=args.repeat, timeout=args.timeout)
+        batch_capture(base_dir=args.dir, 
+                      host_list=host_list, 
+                      iface=args.iface, 
+                      repeat=args.repeat, 
+                      timeout=args.timeout,
+                      log_output=log_output)
