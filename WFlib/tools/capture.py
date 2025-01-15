@@ -32,7 +32,7 @@ import warnings
 import logging
 
 logger = logging.getLogger('selenium')
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.WARN)
 
 gecko_path = r'/usr/local/bin/geckodriver'
 
