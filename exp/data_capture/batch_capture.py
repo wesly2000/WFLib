@@ -20,6 +20,7 @@ if __name__ == '__main__':
 
     ssl_keylog_file = os.path.join(args.dir, "keylog.txt")
     log_output = os.path.join(args.dir, "log.txt")
+    ill_files = os.path.join(args.dir, "ill_files.txt")
     host_list = read_host_list(args.list)
 
     if args.dry_run:
@@ -35,6 +36,7 @@ if __name__ == '__main__':
                 print(output_file)
         print(ssl_keylog_file)
         print(log_output)
+        print(ill_files)
     else:
         os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
         batch_capture(base_dir=args.dir, 
@@ -42,4 +44,5 @@ if __name__ == '__main__':
                       iface=args.iface, 
                       repeat=args.repeat, 
                       timeout=args.timeout,
+                      ill_files=ill_files,
                       log_output=log_output)

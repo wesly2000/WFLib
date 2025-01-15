@@ -11,13 +11,13 @@ sniff                    v------------------------------------------------------
 capture                  |--------------------------------------------------------------------------|
 """
 
+from selenium.common.exceptions import WebDriverException
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 
 import pyshark
 from pyshark.capture.capture import Capture
-import urllib3
 
 import time
 import threading
@@ -29,6 +29,10 @@ from urllib.parse import urlparse
 import os
 import time
 import warnings
+import logging
+
+logger = logging.getLogger('selenium')
+logger.setLevel(logging.WARNING)
 
 gecko_path = r'/usr/local/bin/geckodriver'
 
@@ -71,7 +75,7 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
     def browse():
         time.sleep(2) # maybe waiting for interface to be ready?
         
-        service = Service(service_args=['--log-level=WARNING'], executable_path=gecko_path, log_output=log_output)
+        service = Service(executable_path=gecko_path, log_output=log_output)
 
         options = Options()
         options.add_argument("--headless") 
@@ -80,12 +84,22 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
         options.set_preference("browser.cache.offline.enable", False)
         options.set_preference("network.http.use-cache", False)
 
-        driver = webdriver.Firefox(options=options, service=service)
+        try:
+            driver = webdriver.Firefox(options=options, service=service)
+        except WebDriverException as e:
+            warnings.warn(f"The file {output_file} raises the exception: {e}")
+            if ill_files is not None:
+                with open(ill_files, 'a+') as f:
+                    f.write(f"{output_file}\n")
+            time.sleep(2)
+            stop_event.set()
+            return
+            
         # print("Browsing Starts.......................")
         try:
             driver.get(url)
             time.sleep(timeout)
-        except urllib3.exceptions.ReadTimeoutError as e:
+        except Exception as e:
             warnings.warn(f"The file {output_file} raises the exception: {e}")
             if ill_files is not None:
                 with open(ill_files, 'a+') as f:
@@ -177,6 +191,7 @@ def batch_capture(base_dir, host_list, iface,
                   capture_fileter=common_filter, 
                   repeat=20, 
                   timeout=200, 
+                  ill_files=None,
                   log_output=None):
     """
     Capture the traffic of a list of hosts. The capturing and storing process is illustrated as follows.
@@ -248,6 +263,7 @@ def batch_capture(base_dir, host_list, iface,
                     iface=iface, 
                     output_file=output_file,
                     capture_filter=capture_fileter,
+                    ill_files=ill_files,
                     log_output=log_output)
             
             time.sleep(5)  # Avoid previous session traffic to affect succeeding capture.
