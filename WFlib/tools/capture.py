@@ -75,7 +75,7 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
     def browse():
         time.sleep(2) # maybe waiting for interface to be ready?
         
-        service = Service(executable_path=gecko_path, log_output=log_output)
+        service = Service(executable_path=gecko_path, log_output=None)
 
         options = Options()
         options.add_argument("--headless") 
@@ -87,7 +87,9 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
         try:
             driver = webdriver.Firefox(options=options, service=service)
         except WebDriverException as e:
-            warnings.warn(f"The file {output_file} raises the exception: {e}")
+            if log_output is not None:
+                with open(log_output, 'a+') as f:
+                    f.write(f"The file {output_file} raises the exception: {e}\n")
             if ill_files is not None:
                 with open(ill_files, 'a+') as f:
                     f.write(f"{output_file}\n")
@@ -100,7 +102,9 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
             driver.get(url)
             time.sleep(timeout)
         except Exception as e:
-            warnings.warn(f"The file {output_file} raises the exception: {e}")
+            if log_output is not None:
+                with open(log_output, 'a+') as f:
+                    f.write(f"The file {output_file} raises the exception: {e}\n")
             if ill_files is not None:
                 with open(ill_files, 'a+') as f:
                     f.write(f"{output_file}\n")
