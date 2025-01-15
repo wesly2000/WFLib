@@ -47,7 +47,7 @@ NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of t
 """
 common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80) and (tcp or udp)'
 
-def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, log_output=None):
+def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, ill_files=None, log_output=None):
     stop_event = multiprocessing.Event()
 
     def _sniff():
@@ -71,7 +71,7 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
     def browse():
         time.sleep(2) # maybe waiting for interface to be ready?
         
-        service = Service(executable_path=gecko_path, log_output=None)
+        service = Service(service_args=['--log-level=WARNING'], executable_path=gecko_path, log_output=log_output)
 
         options = Options()
         options.add_argument("--headless") 
@@ -87,8 +87,8 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
             time.sleep(timeout)
         except urllib3.exceptions.ReadTimeoutError as e:
             warnings.warn(f"The file {output_file} raises the exception: {e}")
-            if log_output is not None:
-                with open(log_output, 'a+') as f:
+            if ill_files is not None:
+                with open(ill_files, 'a+') as f:
                     f.write(f"{output_file}\n")
         driver.quit()
         
