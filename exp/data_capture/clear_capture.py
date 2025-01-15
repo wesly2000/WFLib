@@ -50,7 +50,7 @@ def ask_proceed():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--list', type=str, help="The file list to delete")
-    parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
+    parser.add_argument('--verbose', action='store_true', help="Verbose output")
     parser.add_argument('--clear-content', action='store_true', help="If specified, the content of the specified file will be cleared")
     args = parser.parse_args()
 
