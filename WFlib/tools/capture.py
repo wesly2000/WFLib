@@ -261,6 +261,9 @@ def batch_capture(base_dir, host_list, iface,
             output_dir.mkdir(parents=True, exist_ok=True)
             url = proto_header + host
             # start_time = time.time()
+
+            ssl_keylog_file = f"{base_dir}/{host}/keylog.txt"
+            os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
             
             capture(url=url, 
                     timeout=timeout, 
