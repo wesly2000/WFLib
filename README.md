@@ -140,7 +140,7 @@ The meanings of all parameters can be found in the `exp/train.py` and `exp/test.
 Currently, we keep the original docs unchanged, and add the docs for the extended parts in this section. The extended parts mainly includes **Visualization** and **Data Collection**.
 
 ### Data Collection
-This part aims to automate the traffic collection with headless browser + Selenium, and collect traffic *asynchronously* with Scapy. Since most operations of Scapy involves OS sockets, usually it requires *sudo* to run the extended functions.
+This part aims to automate the traffic collection with headless browser + Selenium, and collect traffic *asynchronously* with TShark. Be sure to add the user to the **TShark group** to avoid *permission issue*.
 
 To avoid messing up your Python environment, we *highly recommend* the use of *virtual Python environment*. To be specific, a quick workaround to the *permission issue* could be solved by
 
@@ -148,7 +148,34 @@ To avoid messing up your Python environment, we *highly recommend* the use of *v
 $ python -m venv path/to/your/venv
 $ source path/to/your/venv/bin/activate
 $ pip install .
-$ sudo path/to/your/venv/bin/python /your/script.py # Solve permission issue by authorizing virtual Python binary
+$ python your_script.py
+```
+
+#### Keylog Issue
+Originally, the keylog is bound to the protocol-level capture. For example, all the website traffic captured without proxy traffic will output the SSL key log to a single keylog file. After performing some capture in scale, we found that the resulting keylog might be too large, raising *low decryption efficiency* issue.
+
+Therefore, currently we try to stick to one-website-one-keylog mode for better isolation and efficiency. However, the previous traffic should be decrypted using the legacy `keylog.txt`, we list these `.pcapng` files for a reference.
+
+```
+<= ai.zjnav.com_94.pcapng
+<= chrome.pictureknow.com_93.pcapng
+<= cloud.tencent.com_94.pcapng
+<= cn.bing.com_410.pcapng
+<= docs.scriptcat.org_94.pcapng
+<= extensiondock.com_93.pcapng
+<= m.sm.cn_408.pcapng
+<= quark.sm.cn_412.pcapng
+<= so.douyin.com_408.pcapng
+<= wuqiankx.top_205.pcapng
+<= www.114best.com_412.pcapng
+<= www.baidu.com_416.pcapng
+<= www.chahaoba.com_412.pcapng
+<= www.dogyun.com_90.pcapng
+<= www.jdcloud.com_94.pcapng
+<= www.niaoyun.com_94.pcapng
+<= www.sogou.com_412.pcapng
+<= www.youxiaohou.com_199.pcapng
+<= yandex.com_409.pcapng
 ```
 
 ## Contact

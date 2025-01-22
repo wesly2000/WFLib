@@ -300,6 +300,7 @@ class PcapFormatter(Formatter):
         # Iterate over all subdirectories in the base directory
         for subdir in base_dir_path.iterdir():
             if subdir.is_dir():  # Check if it's a directory
+                print(f"Processing directory {subdir.name}")
                 host = str(subdir).split('/')[-1]
                 for file in subdir.iterdir():
                     if file.is_file():  # Ensure it's a file
