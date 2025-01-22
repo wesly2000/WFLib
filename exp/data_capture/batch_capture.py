@@ -18,7 +18,6 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true', help="To output the file names will be created without actual creation.")
     args = parser.parse_args()
 
-    # ssl_keylog_file = os.path.join(args.dir, "keylog.txt")
     log_output = os.path.join(args.dir, "log.txt")
     ill_files = os.path.join(args.dir, "ill_files.txt")
     host_list = read_host_list(args.list)
@@ -37,12 +36,10 @@ if __name__ == '__main__':
         for host in host_list:
             host = host.strip()
             ssl_keylog_file = Path(f"{args.dir}/{host}/keylog.txt")
-            if not ssl_keylog_file.exists():
-                print(ssl_keylog_file)
+            print(ssl_keylog_file)
         print(log_output)
         print(ill_files)
     else:
-        # os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
         batch_capture(base_dir=args.dir, 
                       host_list=host_list, 
                       iface=args.iface, 

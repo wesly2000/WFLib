@@ -17,7 +17,6 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true', help="To output the file names will be created without actual creation.")
     args = parser.parse_args()
 
-    ssl_keylog_file = os.path.join(args.dir, "keylog.txt")
     log_output = os.path.join(args.dir, "log.txt")
     ill_files = os.path.join(args.dir, "ill_files.txt")
     host_list = [args.host]
@@ -33,11 +32,13 @@ if __name__ == '__main__':
                 # the index with i to get the correct filenames.
                 output_file = os.path.join(args.dir, host, "{}_{}.pcapng".format(host, output_file_idx + i))
                 print(output_file)
+
+        host = host_list[0].strip()
+        ssl_keylog_file = Path(f"{args.dir}/{host}/keylog.txt")
         print(ssl_keylog_file)
         print(log_output)
         print(ill_files)
     else:
-        os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
         batch_capture(base_dir=args.dir, 
                       host_list=host_list, 
                       iface=args.iface, 
