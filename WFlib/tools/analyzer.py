@@ -3,6 +3,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 import pyshark 
+from pathlib import Path
 
 def feature_attr(model, attr_method, X, y, num_classes):
     """
@@ -61,4 +62,20 @@ def packet_count(file, display_filter=None):
     for _ in cap:
         cnt += 1
     cap.close()
+    return cnt
+
+def file_count(base_dir : Path):
+    '''
+    For each subdirectory (per represents a website) in the base_dir,
+    count the number of .pcap(ng) files and put the results in a dict.
+    '''
+    cnt = dict()
+    subdirs = filter(lambda x: x.is_dir(), base_dir.iterdir())
+
+    for subdir in subdirs:
+        cnt[subdir.name] = sum(1 for _ in filter( # Only count pcap(ng) files
+                lambda x: x.is_file() and x.suffix in ['.pcapng', '.pcap'], subdir.iterdir()
+                )
+            )
+
     return cnt
