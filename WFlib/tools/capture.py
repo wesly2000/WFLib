@@ -137,12 +137,18 @@ def read_host_list(file) -> list:
             return hostname
         else:
             return url
+        
     host_list = []
     with open(file, 'r') as f:
         for line in f:
-            # print(line)
-            if line not in host_list: # Avoid possible dups
-                host_list.append(strip_url(line.strip()))
+            stripped_line = line.strip()  # Remove leading and trailing whitespace
+            if stripped_line.startswith("#"):
+                continue  # Ignore comment lines
+
+            url = stripped_line.split("#")[0].strip() # Ignore inline comments
+            hostname = strip_url(url.strip())
+            if hostname and hostname not in host_list:
+                host_list.append(hostname)
 
     return host_list
 
