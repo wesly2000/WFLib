@@ -204,7 +204,7 @@ def batch_capture(base_dir, host_list, iface,
                   ill_files=None,
                   log_output=None,
                   use_proxy=False,
-                  proxy_log_output=None):
+                  proxy_log=None):
     """
     Capture the traffic of a list of hosts. The capturing and storing process is illustrated as follows.
     Suppose the host_list = [www.baidu.com, www.zhihu.com, www.google.com], and the base_dir is set to
@@ -307,7 +307,7 @@ def batch_capture(base_dir, host_list, iface,
             # Launch Clash asynchronously
             if use_proxy:
                 keylog = f"{base_dir}/{host}/proxy_keylog.txt"
-                monitor_process = multiprocessing.Process(target=lunch_proxy, kwargs={"keylog": keylog})
+                monitor_process = multiprocessing.Process(target=lunch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
                 monitor_process.start()
             
             capture(url=url, 
