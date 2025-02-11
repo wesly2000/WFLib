@@ -202,7 +202,9 @@ def batch_capture(base_dir, host_list, iface,
                   repeat=20, 
                   timeout=200, 
                   ill_files=None,
-                  log_output=None):
+                  log_output=None,
+                  use_proxy=False,
+                  proxy_log_output=None):
     """
     Capture the traffic of a list of hosts. The capturing and storing process is illustrated as follows.
     Suppose the host_list = [www.baidu.com, www.zhihu.com, www.google.com], and the base_dir is set to
@@ -250,10 +252,41 @@ def batch_capture(base_dir, host_list, iface,
 
     log_output : str
         The path for Selenium to record the debug log files.
+
+    use_proxy : boolean
+        Whether to capture proxied traffic.
     """
+    def lunch_proxy(keylog, proxy_log):
+        # TODO: Currently, only Clash is supported. More proxy clients would be supported in the future.
+        stdout = open(proxy_log, 'a+') if proxy_log is not None else subprocess.DEVNULL
+
+        clash_process = subprocess.Popen(
+            ['clash', '--vmess-keylog', keylog],
+            stdout=stdout,
+            stderr=subprocess.STDOUT 
+        )
+        try:
+            # Monitor the event
+            while not stop_event.is_set():
+                time.sleep(.1)  # Poll every second
+            clash_process.terminate()
+            clash_process.wait()
+        except Exception as e:
+            print(f"Error in subprocess: {e}")
+        finally:
+            if clash_process.poll() is None:
+                clash_process.terminate()
+
     proto_header = "https://"
     # Handle directory, create if necessary. 
     # Ref: https://stackoverflow.com/questions/273192/how-do-i-create-a-directory-and-any-missing-parent-directories
+
+    # Turn on system proxy
+    if use_proxy:
+        os.environ["http_proxy"] = "http://127.0.0.1:7890"
+        os.environ["https_proxy"] = "http://127.0.0.1:7890"
+        stop_event = multiprocessing.Event()
+
     for i in range(repeat):
         for host in host_list:
             # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
@@ -270,6 +303,12 @@ def batch_capture(base_dir, host_list, iface,
 
             ssl_keylog_file = f"{base_dir}/{host}/keylog.txt"
             os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
+
+            # Launch Clash asynchronously
+            if use_proxy:
+                keylog = f"{base_dir}/{host}/proxy_keylog.txt"
+                monitor_process = multiprocessing.Process(target=lunch_proxy, kwargs={"keylog": keylog})
+                monitor_process.start()
             
             capture(url=url, 
                     timeout=timeout, 
@@ -279,10 +318,20 @@ def batch_capture(base_dir, host_list, iface,
                     ill_files=ill_files,
                     log_output=log_output)
             
+            if use_proxy:
+                stop_event.set()
+                monitor_process.join()
+                stop_event.clear()
+
             time.sleep(5)  # Avoid previous session traffic to affect succeeding capture.
             
             # end_time = time.time()
             # print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
+
+    # Turn off system proxy
+    if use_proxy:
+        os.environ.pop("http_proxy", None)
+        os.environ.pop("https_proxy", None)
 
 def SNI_extract(capture : Capture) -> set:
     """

@@ -166,3 +166,6 @@ checkpoints
 logs
 tmp_files
 analysis
+
+# Some capture files
+exp/example_capture
