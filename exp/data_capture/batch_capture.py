@@ -15,12 +15,16 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--iface', type=str, help="The interface to perform capturing")
     parser.add_argument('-r', '--repeat', type=int, default=20, help="How many times the request will repeat")
     parser.add_argument('-t', '--timeout', type=int, default=200, help="The living time for a browsing session")
+    parser.add_argument('--use-proxy', action='store_true', help="To use proxy for proxied traffic capture.")
     parser.add_argument('--dry-run', action='store_true', help="To output the file names will be created without actual creation.")
     args = parser.parse_args()
 
     log_output = os.path.join(args.dir, "log.txt")
     ill_files = os.path.join(args.dir, "ill_files.txt")
     host_list = read_host_list(args.list)
+
+    proxy_log = os.path.join(args.dir, "proxy_log.txt") if args.use_proxy else None
+
 
     if args.dry_run:
         print("Dry run mode, the file names are listed below:")
@@ -39,6 +43,8 @@ if __name__ == '__main__':
             print(ssl_keylog_file)
         print(log_output)
         print(ill_files)
+        if proxy_log is not None:
+            print(proxy_log)
     else:
         batch_capture(base_dir=args.dir, 
                       host_list=host_list, 
@@ -46,4 +52,6 @@ if __name__ == '__main__':
                       repeat=args.repeat, 
                       timeout=args.timeout,
                       ill_files=ill_files,
-                      log_output=log_output)
+                      log_output=log_output,
+                      proxy_log=proxy_log
+                      )

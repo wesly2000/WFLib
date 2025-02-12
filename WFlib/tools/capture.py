@@ -203,7 +203,6 @@ def batch_capture(base_dir, host_list, iface,
                   timeout=200, 
                   ill_files=None,
                   log_output=None,
-                  use_proxy=False,
                   proxy_log=None):
     """
     Capture the traffic of a list of hosts. The capturing and storing process is illustrated as follows.
@@ -282,7 +281,7 @@ def batch_capture(base_dir, host_list, iface,
     # Ref: https://stackoverflow.com/questions/273192/how-do-i-create-a-directory-and-any-missing-parent-directories
 
     # Turn on system proxy
-    if use_proxy:
+    if proxy_log is not None:
         os.environ["http_proxy"] = "http://127.0.0.1:7890"
         os.environ["https_proxy"] = "http://127.0.0.1:7890"
         stop_event = multiprocessing.Event()
@@ -305,7 +304,7 @@ def batch_capture(base_dir, host_list, iface,
             os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
 
             # Launch Clash asynchronously
-            if use_proxy:
+            if proxy_log is not None:
                 keylog = f"{base_dir}/{host}/proxy_keylog.txt"
                 monitor_process = multiprocessing.Process(target=lunch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
                 monitor_process.start()
@@ -318,7 +317,7 @@ def batch_capture(base_dir, host_list, iface,
                     ill_files=ill_files,
                     log_output=log_output)
             
-            if use_proxy:
+            if proxy_log is not None:
                 stop_event.set()
                 monitor_process.join()
                 stop_event.clear()
@@ -329,7 +328,7 @@ def batch_capture(base_dir, host_list, iface,
             # print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
 
     # Turn off system proxy
-    if use_proxy:
+    if proxy_log is not None:
         os.environ.pop("http_proxy", None)
         os.environ.pop("https_proxy", None)
 
