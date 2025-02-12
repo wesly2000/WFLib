@@ -51,7 +51,7 @@ NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of t
 """
 common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80 or port 8088) and (tcp or udp)'
 
-def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, ill_files=None, log_output=None):
+def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, ill_files=None, log_output=None, proxy_log=None):
     stop_event = multiprocessing.Event()
 
     def _sniff():
@@ -83,6 +83,17 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
         options.set_preference("browser.cache.memory.enable", False)
         options.set_preference("browser.cache.offline.enable", False)
         options.set_preference("network.http.use-cache", False)
+
+        # Configure proxy options for Firefox
+        if proxy_log is not None:
+            options.set_preference("network.proxy.type", 1)
+            options.set_preference("network.proxy.http", "127.0.0.1")
+            options.set_preference("network.proxy.http_port", 7890)
+            options.set_preference('network.proxy.socks', '127.0.0.1')
+            options.set_preference('network.proxy.socks_port', 7890)
+            options.set_preference('network.proxy.socks_remote_dns', False)
+            options.set_preference("network.proxy.ssl", "127.0.0.1")
+            options.set_preference("network.proxy.ssl_port", 7890)
 
         try:
             driver = webdriver.Firefox(options=options, service=service)
@@ -260,7 +271,7 @@ def batch_capture(base_dir, host_list, iface,
         stdout = open(proxy_log, 'a+') if proxy_log is not None else subprocess.DEVNULL
 
         clash_process = subprocess.Popen(
-            ['clash', '--vmess-keylog', keylog],
+            ['/home/lxyu/clash/bin/clash-linux-amd64-debug', '-key-vmess', keylog],
             stdout=stdout,
             stderr=subprocess.STDOUT 
         )
@@ -282,8 +293,8 @@ def batch_capture(base_dir, host_list, iface,
 
     # Turn on system proxy
     if proxy_log is not None:
-        os.environ["http_proxy"] = "http://127.0.0.1:7890"
-        os.environ["https_proxy"] = "http://127.0.0.1:7890"
+        # os.environ["http_proxy"] = "http://127.0.0.1:7890"
+        # os.environ["https_proxy"] = "http://127.0.0.1:7890"
         stop_event = multiprocessing.Event()
 
     for i in range(repeat):
@@ -315,7 +326,8 @@ def batch_capture(base_dir, host_list, iface,
                     output_file=output_file,
                     capture_filter=capture_fileter,
                     ill_files=ill_files,
-                    log_output=log_output)
+                    log_output=log_output,
+                    proxy_log=proxy_log)
             
             if proxy_log is not None:
                 stop_event.set()
@@ -328,9 +340,9 @@ def batch_capture(base_dir, host_list, iface,
             # print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
 
     # Turn off system proxy
-    if proxy_log is not None:
-        os.environ.pop("http_proxy", None)
-        os.environ.pop("https_proxy", None)
+    # if proxy_log is not None:
+    #     os.environ.pop("http_proxy", None)
+    #     os.environ.pop("https_proxy", None)
 
 def SNI_extract(capture : Capture) -> set:
     """
