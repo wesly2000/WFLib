@@ -298,7 +298,7 @@ class PcapFormatter(Formatter):
         label = 0  # Processing a hostname will increase the label by 1
 
         # Iterate over all subdirectories in the base directory
-        for subdir in base_dir_path.iterdir():
+        for subdir in sorted(base_dir_path.iterdir()):
             if subdir.is_dir():  # Check if it's a directory
                 print(f"Processing directory {subdir.name}")
                 host = str(subdir).split('/')[-1]

@@ -94,6 +94,8 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
             options.set_preference('network.proxy.socks_remote_dns', False)
             options.set_preference("network.proxy.ssl", "127.0.0.1")
             options.set_preference("network.proxy.ssl_port", 7890)
+            options.set_preference("webdriver_accept_untrusted_certs", True)
+            options.set_preference("webdriver_assume_untrusted_issuer", False)
 
         try:
             driver = webdriver.Firefox(options=options, service=service)
@@ -272,7 +274,7 @@ def batch_capture(base_dir, host_list, iface,
 
         clash_process = subprocess.Popen(
             ['/home/lxyu/clash/bin/clash-linux-amd64-debug', '-key-vmess', keylog],
-            stdout=stdout,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT 
         )
         try:
