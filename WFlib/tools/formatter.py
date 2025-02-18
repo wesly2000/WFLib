@@ -3,6 +3,7 @@ import pyshark
 import json
 from pathlib import Path
 import warnings
+import multiprocessing
 from WFlib.tools.capture import SNI_exclude_filter
 
 class Extractor(object):
@@ -301,7 +302,7 @@ class PcapFormatter(Formatter):
         for subdir in sorted(base_dir_path.iterdir()):
             if subdir.is_dir():  # Check if it's a directory
                 print(f"Processing directory {subdir.name}")
-                host = str(subdir).split('/')[-1]
+                host = str(subdir).split('/')[-1] #  Consider using subdir.name
                 for file in subdir.iterdir():
                     if file.is_file() and file.suffix in ['.pcapng', '.pcap']:  # Ensure it's a pcap(ng) file
                         display_filter = SNI_exclude_filter(file, SNIs)
@@ -311,6 +312,44 @@ class PcapFormatter(Formatter):
                 label += 1
 
         self.dump(output_file)
+
+    def distributed_batch_extract(self, base_dir, output_file, SNIs=None, *extractors):
+        def single_dir_batch_extract(subdir : Path, results : list):
+            """
+            Extract the feature array for the subdir, and prepend the name of the host to it
+            to extract the Name-Feature pair.
+
+            Params
+            ------
+            subdir : Path
+                The sub-directory to extract the feature array.
+
+            results : list
+                The pool to append all the sub-process results.
+
+            Example
+            -------
+            Suppose we have two sub-directories under the base, say /home/base/www.google.com and /home/base/www.baidu.com.
+            The pool is initially an empty list.
+
+            The hosts are 'www.google.com', 'www.baidu.com'. Then, the resulting pool should be
+            [('www.google.com', X_1), ('www.baidu.com', X_2)].
+            """
+            pass
+
+        base_dir_path = Path(base_dir)
+        subdir_list = sorted(filter(lambda subdir: subdir.is_dir(), base_dir_path.iterdir()))
+        hosts = [subdir.name for subdir in subdir_list]
+        with multiprocessing.Manager() as manager:
+            results = manager.list()
+            num_workers = 4  # For testing purpose.
+
+            with multiprocessing.Pool(num_workers) as pool:
+                pool.starmap(single_dir_batch_extract, [(subdir, results) for subdir in subdir_list])
+
+            return list(results)
+
+
 
 class JsonFormatter(Formatter):
     """
