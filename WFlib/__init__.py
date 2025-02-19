@@ -1,7 +1,7 @@
 import shutil
 
 def check_dependency():
-    required_software = ['geckodriver', 'tshark', 'chrome']
+    required_software = ['geckodriver', 'tshark']
     for software in required_software:
         if shutil.which(software) is None:
             raise RuntimeError(f"{software} is required but not found.")

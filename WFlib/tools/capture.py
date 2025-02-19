@@ -28,13 +28,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 import os
 import time
-import warnings
 import logging
+import shutil
 
 logger = logging.getLogger('selenium')
 logger.setLevel(logging.WARN)
 
-gecko_path = r'/usr/local/bin/geckodriver'
+gecko_path = shutil.which('geckodriver')
 
 """
 This filter is a Capture Filter to filter the annoying traffic which, with high probability, is NOT related with the
