@@ -50,7 +50,7 @@ YDService (5574), tat_agent (8186)
 NOTE: This filter is not exhausted, and further updates are possible in the future.
 NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of the request are based on HTTPS 
 """
-common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80 or port 8088) and (tcp or udp)'
+common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80 or port 8088 or port 5574 or port 8186) and (tcp or udp)'
 
 def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, ill_files=None, log_output=None, proxy_log=None):
     stop_event = multiprocessing.Event()
