@@ -1,8 +1,8 @@
 from setuptools import setup
 import sys
 
-if sys.version_info[:2] != (3, 8):
-    raise RuntimeError("Python version 3.8 required")
+if sys.version_info < (3, 8):
+    raise RuntimeError("Python version 3.8 or higher is required")
 
 setup(
     name='WFlib',

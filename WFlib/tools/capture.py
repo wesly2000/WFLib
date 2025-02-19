@@ -28,13 +28,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 import os
 import time
-import warnings
 import logging
+import shutil
 
 logger = logging.getLogger('selenium')
 logger.setLevel(logging.WARN)
 
-gecko_path = r'/usr/local/bin/geckodriver'
+gecko_path = shutil.which('geckodriver')
 
 """
 This filter is a Capture Filter to filter the annoying traffic which, with high probability, is NOT related with the
@@ -44,7 +44,8 @@ the capture.
 
 The semantics of the filter is that we ONLY want TCP or UDP packets, but the following protocols are NOT considered:
 
-LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389), DOT (853), HTTP (80), Radan HTTP (8088)
+LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389), DOT (853), HTTP (80), Radan HTTP (8088),
+YDService (5574), tat_agent (8186)
 
 NOTE: This filter is not exhausted, and further updates are possible in the future.
 NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of the request are based on HTTPS 
