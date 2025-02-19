@@ -4,6 +4,7 @@ from WFlib.tools.formatter import *
 import io
 import json
 import tempfile
+import tracemalloc
 
 def test_PcapFormatter_1():
     """
@@ -196,6 +197,55 @@ def test_PcapFormatter_6():
 
     loaded_data.close()
 
+def test_PcapFormatter_7():
+    """
+    This test covers reading the first 10 packets from multiple .pcap files, and extract the direction feature.
+    This test involves the use of batch_extract, and setting keep_packets to False for memory optimization.
+    """
+    formatter = PcapFormatter(length=10, keep_packets=False)
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+    
+    formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
+
+    formatter.dump(buffer)
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["realworld_dataset", "simple_dataset"]), 
+              "labels": np.array([0, 1, 1, 1]), 
+              "direction": np.array([
+                  [1, 1, 1, 1, 1, -1, 1, 1, -1, -1],
+                  [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [-1, -1, 1, -1, 1, -1, 1, 1, -1, -1]
+                  ])}
+    
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
+def test_PcapFormatter_8():
+    """
+    This test validates that setting keep_packets to False reduces the memory usage.
+    """
+    def measure_memory(func):
+        tracemalloc.start()  # Tracing memory usage starts
+        func()  
+        snapshot = tracemalloc.take_snapshot()  # Fetch the snapshot of the memory
+        tracemalloc.stop()  # Stop memory tracing
+
+        # Compute the memory usage
+        total_memory = sum(stat.size for stat in snapshot.statistics('lineno'))
+        return total_memory
+
+    total_memory_1 = measure_memory(test_PcapFormatter_6)
+    total_memory_2 = measure_memory(test_PcapFormatter_7)
+    assert total_memory_1 > 1.2 * total_memory_2
 
 def test_JsonFormatter_1():
     """
