@@ -173,6 +173,11 @@ class PcapFormatter(Formatter):
             
             See discussion at https://github.com/KimiNewt/pyshark/issues/648
 
+            NOTE: For the bug above, official PyShark library has fixed it in 
+            https://github.com/KimiNewt/pyshark/commit/5bef3687fc821e0cc4e1606531b004ff827ad8f9,
+            so if you installed the new version, the issue should no longer appear. If you have the old version
+            installed and you still want only_summaries, please refer to the method above for a quick fix.
+
         keep_packets : bool
             Whether to keep packets in the capture. Setting to False largely reduce memory consumption.
 
