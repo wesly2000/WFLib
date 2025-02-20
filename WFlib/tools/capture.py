@@ -389,8 +389,9 @@ def stream_number_extract(capture : Capture, check) -> set:
     ------
     set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
     """
-    stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
-    return stream_numbers
+    tcp_stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
+    udp_stream_numbers = set(pkt['UDP'].stream for pkt in capture if 'UDP' in pkt and check(pkt))
+    return tcp_stream_numbers, udp_stream_numbers
 
 def stream_extract_filter(stream_numbers : Union[list, set]):
     """
@@ -401,11 +402,11 @@ def stream_extract_filter(stream_numbers : Union[list, set]):
 
     return display_filter
 
-def stream_exclude_filter(stream_numbers : Union[list, set]):
+def stream_exclude_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
     """
     Remove the streams with the given stream_numbers from input_file, and write the other streams to output_file.
     """
-    extended_stream_numbers = ["tcp.stream != " + stream_number for stream_number in stream_numbers]
+    extended_stream_numbers = ["tcp.stream != " + stream_number for stream_number in tcp_stream_numbers]
     display_filter = " and ".join(extended_stream_numbers)
 
     return display_filter
@@ -444,7 +445,7 @@ def SNI_exclude_filter(file, SNIs):
     if SNIs is None or len(SNIs) == 0:
         return None
     client_hello_capture = pyshark.FileCapture(input_file=file, display_filter="tls.handshake.type == 1")
-    stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
+    tcp_stream_numbers, udp_stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
     client_hello_capture.close()
-    display_filter = stream_exclude_filter(stream_numbers)
+    display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
     return display_filter
