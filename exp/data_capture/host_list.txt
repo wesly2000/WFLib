@@ -1,0 +1,12 @@
+www.google.com
+www.wikipedia.org
+openai.com
+www.wireshark.org
+www.reddit.com
+www.youtube.com
+play.google.com
+www.quora.com
+github.com
+gitee.com
+telegram.org
+zeek.org

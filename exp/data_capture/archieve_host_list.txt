@@ -1,0 +1,36 @@
+www.yicai.com
+www.10jqka.com.cn
+www.niaoyun.com
+docs.scriptcat.org
+www.jdcloud.com
+cloud.tencent.com
+www.dogyun.com
+chrome.pictureknow.com
+extensiondock.com
+www.xunlei.com
+top.baidu.com
+s.weibo.com
+www.fromgeek.com
+www.36kr.com
+www.tukuppt.com
+ask.zol.com.cn
+www.officeplus.cn
+ai.zjnav.com
+sports.sohu.com
+sports.163.com
+www.sina.com.cn # Slow with proxy 
+# www.qq.com # Cannot be requested with proxy
+www.aliyun.com
+www.huaweicloud.com
+www.baidu.com
+quark.sm.cn
+www.sogou.com
+www.chahaoba.com
+www.114best.com
+www.youxiaohou.com
+cn.bing.com
+yandex.com
+m.sm.cn
+so.douyin.com
+wuqiankx.top
+www.xiaohongshu.com
