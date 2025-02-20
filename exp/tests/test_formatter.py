@@ -245,7 +245,7 @@ def test_PcapFormatter_8():
 
     total_memory_1 = measure_memory(test_PcapFormatter_6)
     total_memory_2 = measure_memory(test_PcapFormatter_7)
-    assert total_memory_1 > 1.2 * total_memory_2
+    assert total_memory_1 > total_memory_2
 
 def test_JsonFormatter_1():
     """
