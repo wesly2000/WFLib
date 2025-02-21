@@ -45,15 +45,30 @@ def test_stream_extract_filter():
 
     assert display_filter == target
 
-def test_stream_exclude_filter():
+def test_stream_exclude_filter_1():
     tcp_stream_numbers, udp_stream_numbers = [], []
     display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
-    target = ""
+    target = "(tcp or udp) and not icmp"
     assert display_filter == target
 
-    tcp_stream_numbers = ['1', '4', '3']
+def test_stream_exclude_filter_2():
+    tcp_stream_numbers, udp_stream_numbers = ['1', '4', '3'], []
     display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
-    target = "tcp.stream != 1 and tcp.stream != 4 and tcp.stream != 3"
+    target = "((tcp and tcp.stream != 1 and tcp.stream != 4 and tcp.stream != 3) or udp) and not icmp"
+
+    assert display_filter == target
+
+def test_stream_exclude_filter_3():
+    tcp_stream_numbers, udp_stream_numbers = [], ['1', '4', '3']
+    display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
+    target = "(tcp or (udp and udp.stream != 1 and udp.stream != 4 and udp.stream != 3)) and not icmp"
+
+    assert display_filter == target
+
+def test_stream_exclude_filter_4():
+    tcp_stream_numbers, udp_stream_numbers = ['2', '5'], ['1', '4', '3']
+    display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
+    target = "((tcp and tcp.stream != 2 and tcp.stream != 5) or (udp and udp.stream != 1 and udp.stream != 4 and udp.stream != 3)) and not icmp"
 
     assert display_filter == target
 

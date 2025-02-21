@@ -406,8 +406,19 @@ def stream_exclude_filter(tcp_stream_numbers : Union[list, set], udp_stream_numb
     """
     Remove the streams with the given stream_numbers from input_file, and write the other streams to output_file.
     """
-    extended_stream_numbers = ["tcp.stream != " + stream_number for stream_number in tcp_stream_numbers]
-    display_filter = " and ".join(extended_stream_numbers)
+    # When we use "tcp.stream != X", the filter implies "tcp and tcp.stream != X", which
+    # actually filter all UDP streams. However, in such case we do want to keep the possible
+    # UDP streams, and vise versa.
+
+    # Therefore, we now write it as (tcp and tcp.stream != X) or (udp and udp.stream != Y) to 
+    # achieve this.
+    tcp_display_filter = " and ".join(["tcp.stream != " + stream_number for stream_number in tcp_stream_numbers])
+    tcp_display_filter = f"(tcp and {tcp_display_filter})" if tcp_display_filter != "" else "tcp"
+    # Since each QUIC connection only occupies one UDP socket, we just need to filter those UDP streams out.
+    udp_display_filter = " and ".join(["udp.stream != " + stream_number for stream_number in udp_stream_numbers])
+    udp_display_filter = f"(udp and {udp_display_filter})" if udp_display_filter != "" else "udp"
+    # Filter ICMP to avoid Ping-over-DNS
+    display_filter = f'({tcp_display_filter} or {udp_display_filter}) and not icmp'
 
     return display_filter
 
