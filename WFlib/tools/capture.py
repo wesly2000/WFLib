@@ -430,6 +430,12 @@ def contains_SNI(SNIs, pkt):
             SNI = tls_layer.handshake_extensions_server_name
             if SNI in SNIs:
                 return True
+    elif 'QUIC' in pkt:
+        quic_layer = pkt['QUIC']
+        if hasattr(quic_layer, 'tls_handshake_extensions_server_name'):
+            SNI = quic_layer.tls_handshake_extensions_server_name
+            if SNI in SNIs:
+                return True
             
     return result
 
