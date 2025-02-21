@@ -111,7 +111,6 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
             stop_event.set()
             return
             
-        # print("Browsing Starts.......................")
         try:
             driver.get(url)
             time.sleep(timeout)
@@ -296,8 +295,6 @@ def batch_capture(base_dir, host_list, iface,
 
     # Turn on system proxy
     if proxy_log is not None:
-        # os.environ["http_proxy"] = "http://127.0.0.1:7890"
-        # os.environ["https_proxy"] = "http://127.0.0.1:7890"
         stop_event = multiprocessing.Event()
 
     for i in range(repeat):
@@ -338,14 +335,6 @@ def batch_capture(base_dir, host_list, iface,
                 stop_event.clear()
 
             time.sleep(5)  # Avoid previous session traffic to affect succeeding capture.
-            
-            # end_time = time.time()
-            # print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
-
-    # Turn off system proxy
-    # if proxy_log is not None:
-    #     os.environ.pop("http_proxy", None)
-    #     os.environ.pop("https_proxy", None)
 
 def SNI_extract(capture : Capture) -> set:
     """
