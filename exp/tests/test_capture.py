@@ -2,8 +2,9 @@ from WFlib.tools.capture import *
 import pyshark
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
+google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
 
-def test_SNI_extract():
+def test_SNI_extract_1():
     capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
     SNIs = SNI_extract(capture)
 
@@ -15,6 +16,23 @@ def test_SNI_extract():
         "content-signature-2.cdn.mozilla.net",
         "firefox-settings-attachments.cdn.mozilla.net",
         "dns.twnic.tw"
+    }
+
+    assert SNIs == target
+
+    capture.close()
+
+def test_SNI_extract_2():
+    capture = pyshark.FileCapture(input_file=google_file, display_filter="tls.handshake.type == 1")
+    SNIs = SNI_extract(capture)
+
+    target = {
+        "mobile.events.data.microsoft.com",
+        "firefox-settings-attachments.cdn.mozilla.net",
+        "www.google.com",
+        "csp.withgoogle.com",
+        "www.gstatic.com",
+        "ogads-pa.googleapis.com"
     }
 
     assert SNIs == target

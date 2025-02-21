@@ -19,7 +19,7 @@ def test_packet_count_02():
 
 def test_file_count():
     base_dir = Path("exp/test_dataset")
-    target = {"realworld_dataset": 1, "simple_dataset": 3}
+    target = {"realworld_dataset": 2, "simple_dataset": 3}
 
     result = file_count(base_dir)
 

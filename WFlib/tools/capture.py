@@ -349,6 +349,14 @@ def SNI_extract(capture : Capture) -> set:
                 if hasattr(tls_layer, 'handshake_extensions_server_name'):
                     SNI = tls_layer.handshake_extensions_server_name
                     SNIs.add(SNI)
+            elif 'QUIC' in packet:
+                quic_layer = packet['QUIC']
+                # In Wireshark, TLS is embedded in QUIC and the same properties are used.
+                # However, in PyShark, it seems that one should use
+                # tls_handshake_extensions_server_name to fetch SNIs in the embedded TLS SNIs.
+                if hasattr(quic_layer, 'tls_handshake_extensions_server_name'):
+                    SNI = quic_layer.tls_handshake_extensions_server_name
+                    SNIs.add(SNI)
         except AttributeError as e:
             # Handle packets that don't have the expected structure
             print(f"Error processing packet: {e}")
