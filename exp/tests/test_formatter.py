@@ -354,3 +354,15 @@ def test_JsonFormatter_2():
         for i in range(len(target)):
             for j in range(len(target[i])):
                 assert target[i][j] == directions[i][j]
+
+
+def test_DistriPcapFormatter_1():
+    formatter = DistriPcapFormatter(length=10, keep_packets=False)
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+    
+    results = formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
+    print(results)

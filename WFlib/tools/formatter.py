@@ -318,42 +318,110 @@ class PcapFormatter(Formatter):
 
         self.dump(output_file)
 
-    def distributed_batch_extract(self, base_dir, output_file, SNIs=None, *extractors):
-        def single_dir_batch_extract(subdir : Path, results : list):
-            """
-            Extract the feature array for the subdir, and prepend the name of the host to it
-            to extract the Name-Feature pair.
+class DistriPcapFormatter(PcapFormatter):
+    """
+    The distributed (multi-process) version of PcapFormatter. We trigger each process to handle one host (sub-directory)
+    separately. We need to align the host order among different base directory, e.g., normal and vmess. However, and the
+    order of multi-process extract is hard to control. 
 
-            Params
-            ------
-            subdir : Path
-                The sub-directory to extract the feature array.
+    Therefore, the distributed batch_extract follows the process-then-merge paradigm: Each process handles one host and
+    the result is stored in a un-ordered list. After all hosts are processed, the formatter will order the content of the
+    list according to some given host order.
 
-            results : list
-                The pool to append all the sub-process results.
+    For example, suppose the base dir contains 'www.google.com', 'www.baidu.com' and 'yandex.com'. The given host order is
+    the alphabetical order of them, i.e., ['www.baidu.com', 'www.google.com', 'yandex.com']. Suppose the hosts are finished
+    in the order ['yandex.com', 'www.baidu.com', 'www.google.com']. Then, the un-ordered list should be:
+    [('yandex.com', X_1), ('www.baidu.com', X_2), ('www.google.com', X_3)]. 
+    
+    Afterwards, one should order them following the given order, which leads to:
+    [('www.baidu.com', X_2), ('www.google.com', X_3), ('yandex.com', X_1)]. 
 
-            Example
-            -------
-            Suppose we have two sub-directories under the base, say /home/base/www.google.com and /home/base/www.baidu.com.
-            The pool is initially an empty list.
+    Finally, we make similar buffer as in PcapFormatter for later dump.
 
-            The hosts are 'www.google.com', 'www.baidu.com'. Then, the resulting pool should be
-            [('www.google.com', X_1), ('www.baidu.com', X_2)].
-            """
-            pass
+    c.sort(key=lambda x: x[0])
+    """
+    def __init__(self, length=0, only_summaries=True, keep_packets=True, display_filter=None, num_worker=4):
+        super().__init__(length, only_summaries, keep_packets, display_filter)
+        self.num_worker = num_worker
 
+    def load(self, file, buf):
+        raise NotImplementedError()
+
+    def transform(self, host : str, label : int, *extractors : Extractor):
+        raise NotImplementedError()
+    
+    def load_and_transform(self, buf, file, *extractors : Extractor):
+        cap = pyshark.FileCapture(  input_file=file, 
+                                    display_filter=self.display_filter,
+                                    only_summaries=self._only_summaries,
+                                    keep_packets=self._keep_packets)
+        
+        tmp_buf = {extractor.name : [] for extractor in extractors}
+        for pkt in cap:
+            for extractor in extractors:
+                extractor.extract(pkt, tmp_buf[extractor.name], only_summaries=self._only_summaries)
+
+        cap.close()
+
+        # Dump features into ndarray, and append to self._buf[name]
+        for extractor in extractors:
+            if not self._raw:
+                if self._length <= len(tmp_buf[extractor.name]): # Truncate
+                    buf[extractor.name].append(np.array(tmp_buf[extractor.name][:self._length]))
+                else:
+                    padding = 0
+                    padding_len = self._length - len(tmp_buf[extractor.name])
+                    buf[extractor.name].append(np.array(tmp_buf[extractor.name] + [padding] * padding_len))
+            else:
+                buf[extractor.name].append(tmp_buf[extractor.name])
+
+    def batch_extract(self, base_dir, output_file, SNIs=None, *extractors: Extractor):
         base_dir_path = Path(base_dir)
         subdir_list = sorted(filter(lambda subdir: subdir.is_dir(), base_dir_path.iterdir()))
         hosts = [subdir.name for subdir in subdir_list]
         with multiprocessing.Manager() as manager:
-            results = manager.list()
+            self._raw_buf = manager.list()
             num_workers = 4  # For testing purpose.
 
             with multiprocessing.Pool(num_workers) as pool:
-                pool.starmap(single_dir_batch_extract, [(subdir, results) for subdir in subdir_list])
+                # Note that multiprocessing uses pickle to dump the single-process task, and it re-import the task
+                # during the execution. Therefore, the single-process task must in the top-level (importable) scope.
+                # See https://stackoverflow.com/questions/72766345/attributeerror-cant-pickle-local-object-in-multiprocessing.
+                pool.starmap(single_dir_batch_extract, [(self, SNIs, subdir, self._raw_buf, *extractors) for subdir in subdir_list])
 
-            return list(results)
+            return list(self._raw_buf)
+        
+def single_dir_batch_extract(formatter : DistriPcapFormatter, SNIs : None, subdir : Path, results : list, *extractors : Extractor):
+    """
+    Extract the feature array for the subdir, and prepend the name of the host to it
+    to extract the Name-Feature pair.
 
+    Params
+    ------
+    subdir : Path
+        The sub-directory to extract the feature array.
+
+    results : list
+        The pool to append all the sub-process results.
+
+    Example
+    -------
+    Suppose we have two sub-directories under the base, say /home/base/www.google.com and /home/base/www.baidu.com.
+    The pool is initially an empty list.
+
+    The hosts are 'www.google.com', 'www.baidu.com'. Then, the resulting pool should be
+    [('www.google.com', X_1), ('www.baidu.com', X_2)].
+    """
+    print(f"Processing directory {subdir.name}")
+    host = subdir.name #  Consider using subdir.name
+    buf = {extractor.name : [] for extractor in extractors}
+    for file in subdir.iterdir():
+        if file.is_file() and file.suffix in ['.pcapng', '.pcap']:  # Ensure it's a pcap(ng) file
+            display_filter = SNI_exclude_filter(file, SNIs)
+            formatter.display_filter = display_filter
+            formatter.load_and_transform(buf, file, *extractors)
+
+    results.append((host, buf))
 
 
 class JsonFormatter(Formatter):
