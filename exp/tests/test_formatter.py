@@ -364,5 +364,17 @@ def test_DistriPcapFormatter_1():
     # Create an in-memory bytes buffer
     buffer = io.BytesIO()
     
-    results = formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
-    print(results)
+    formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(['realworld_dataset', 'simple_dataset']), "labels": np.array([0, 0, 1, 1, 1])}
+    for k, v in target.items():
+        assert np.all(loaded_data[k] == v)
+
+    assert loaded_data['direction'].shape == (5, 10)
+
+    loaded_data.close()

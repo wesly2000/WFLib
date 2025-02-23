@@ -344,7 +344,7 @@ class DistriPcapFormatter(PcapFormatter):
         super().__init__(length, only_summaries, keep_packets, display_filter)
         self.num_worker = num_worker
 
-    def load(self, file, buf):
+    def load(self, file):
         raise NotImplementedError()
 
     def transform(self, host : str, label : int, *extractors : Extractor):
@@ -376,9 +376,37 @@ class DistriPcapFormatter(PcapFormatter):
                 buf[extractor.name].append(tmp_buf[extractor.name])
 
     def batch_extract(self, base_dir, output_file, SNIs=None, *extractors: Extractor):
+        '''
+        Example
+        -------
+        Suppose we have two sub-directories under the base, say /home/base/www.google.com and /home/base/www.baidu.com. Moreover,
+        we used 2 extractors, which representing feature_1, feature_2, respectively.
+        self._raw_buf is initially an empty list.
+
+        The hosts are 'www.google.com', 'www.baidu.com'. Then, self. should be
+        [
+            ('www.google.com', {'feature_0': [X_0, X_1, ..., X_m], 'feature_1': [Y_0, Y_1, ..., Y_m]}), 
+            ('www.baidu.com',  {'feature_0': [X_0, X_1, ..., X_n], 'feature_1': [Y_0, Y_1, ..., Y_n]})
+        ],
+        where each feature should be an np.array of shape (1, self._length).
+
+        Afterwards, we sort self._raw_buf in-place according to the alphabetical order of the hostname, which leads to
+        [
+            ('www.baidu.com',  {'feature_0': [X_0, X_1, ..., X_n], 'feature_1': [Y_0, Y_1, ..., Y_n]}),
+            ('www.google.com', {'feature_0': [X_0, X_1, ..., X_m], 'feature_1': [Y_0, Y_1, ..., Y_m]}), 
+        ],
+        then we send these elements to self._buf along with labels, whose structure is consistent with that of PcapFormatter.
+        {
+            'hosts': ['www.baidu.com', 'www.google.com'],
+            'labels': [0, 0, 0, ..., 0 (n 0's), 1, 1, ..., 1 (m 1's)],
+            'feature_0': [X_0, X_1, ..., X_n, X_0, X_1, ..., X_m],
+            'feature_1': [Y_0, Y_1, ..., Y_n, Y_0, Y_1, ..., Y_m]
+        }, 
+        which could be dumped into .npz.
+        '''
         base_dir_path = Path(base_dir)
         subdir_list = sorted(filter(lambda subdir: subdir.is_dir(), base_dir_path.iterdir()))
-        hosts = [subdir.name for subdir in subdir_list]
+        # hosts = [subdir.name for subdir in subdir_list]
         with multiprocessing.Manager() as manager:
             self._raw_buf = manager.list()
             num_workers = 4  # For testing purpose.
@@ -389,7 +417,23 @@ class DistriPcapFormatter(PcapFormatter):
                 # See https://stackoverflow.com/questions/72766345/attributeerror-cant-pickle-local-object-in-multiprocessing.
                 pool.starmap(single_dir_batch_extract, [(self, SNIs, subdir, self._raw_buf, *extractors) for subdir in subdir_list])
 
-            return list(self._raw_buf)
+            self._raw_buf = list(self._raw_buf)
+        # Merge stage
+        # First, we sort self._raw_buf according to the alphabetical order of the hostnames.
+        self._raw_buf.sort(key=lambda x: x[0])
+        label = 0
+        for (host, array_dict) in self._raw_buf:
+            num = len(array_dict[extractors[0].name]) # Fetch the number of samples within a host
+            self._buf['labels'] += [label] * num 
+            self._buf['hosts'].append(host)
+            for extractor in extractors:
+                if extractor.name in self._buf:
+                    self._buf[extractor.name] += array_dict[extractor.name]
+                else:
+                    self._buf[extractor.name] = array_dict[extractor.name]
+            label += 1
+
+        self.dump(output_file)
         
 def single_dir_batch_extract(formatter : DistriPcapFormatter, SNIs : None, subdir : Path, results : list, *extractors : Extractor):
     """
@@ -403,14 +447,6 @@ def single_dir_batch_extract(formatter : DistriPcapFormatter, SNIs : None, subdi
 
     results : list
         The pool to append all the sub-process results.
-
-    Example
-    -------
-    Suppose we have two sub-directories under the base, say /home/base/www.google.com and /home/base/www.baidu.com.
-    The pool is initially an empty list.
-
-    The hosts are 'www.google.com', 'www.baidu.com'. Then, the resulting pool should be
-    [('www.google.com', X_1), ('www.baidu.com', X_2)].
     """
     print(f"Processing directory {subdir.name}")
     host = subdir.name #  Consider using subdir.name
