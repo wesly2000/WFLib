@@ -182,7 +182,6 @@ def test_PcapFormatter_6():
     
     formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
 
-    formatter.dump(buffer)
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
 
@@ -215,7 +214,6 @@ def test_PcapFormatter_7():
     
     formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
 
-    formatter.dump(buffer)
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
 
@@ -365,8 +363,6 @@ def test_DistriPcapFormatter_1():
     buffer = io.BytesIO()
     
     formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
-
-    formatter.dump(buffer)
 
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
