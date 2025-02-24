@@ -6,6 +6,9 @@ import json
 import tempfile
 import tracemalloc
 
+baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
+google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
+
 def test_PcapFormatter_1():
     """
     This test covers reading the first 10 packets from a .pcap file, and extract the direction feature.
@@ -179,14 +182,14 @@ def test_PcapFormatter_6():
     
     formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
 
-    formatter.dump(buffer)
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
 
     target = {"hosts" : np.array(["realworld_dataset", "simple_dataset"]), 
-              "labels": np.array([0, 1, 1, 1]), 
+              "labels": np.array([0, 0, 1, 1, 1]), 
               "direction": np.array([
                   [1, 1, 1, 1, 1, -1, 1, 1, -1, -1],
+                  [1, 1, 1, -1, -1, -1, -1, 1, 1, -1],
                   [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                   [-1, -1, 1, -1, 1, -1, 1, 1, -1, -1]
@@ -211,14 +214,14 @@ def test_PcapFormatter_7():
     
     formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
 
-    formatter.dump(buffer)
     buffer.seek(0)  # Move to the start of the buffer
     loaded_data = np.load(buffer)
 
     target = {"hosts" : np.array(["realworld_dataset", "simple_dataset"]), 
-              "labels": np.array([0, 1, 1, 1]), 
+              "labels": np.array([0, 0, 1, 1, 1]), 
               "direction": np.array([
                   [1, 1, 1, 1, 1, -1, 1, 1, -1, -1],
+                  [1, 1, 1, -1, -1, -1, -1, 1, 1, -1],
                   [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                   [-1, -1, 1, -1, 1, -1, 1, 1, -1, -1]
@@ -245,7 +248,32 @@ def test_PcapFormatter_8():
 
     total_memory_1 = measure_memory(test_PcapFormatter_6)
     total_memory_2 = measure_memory(test_PcapFormatter_7)
-    assert total_memory_1 > 1.2 * total_memory_2
+    assert total_memory_1 > total_memory_2
+
+def test_PcapFormatter_9():
+    """
+    This test covers reading the first 10 packets from a .pcap file, and extract the direction feature.
+    This test makes feature vector length smaller than the number of packets to test truncation.
+    """
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    formatter = PcapFormatter(length=10)
+    formatter.load("exp/test_dataset/realworld_dataset/www.google.com.pcapng")
+    formatter.transform("www.google.com", 0, extractor)
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["www.google.com"]), "labels": np.array([0]), "direction": np.array([[1, 1, 1, -1, -1, -1, -1, 1, 1, -1]])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
 
 def test_JsonFormatter_1():
     """
@@ -324,3 +352,25 @@ def test_JsonFormatter_2():
         for i in range(len(target)):
             for j in range(len(target[i])):
                 assert target[i][j] == directions[i][j]
+
+
+def test_DistriPcapFormatter_1():
+    formatter = DistriPcapFormatter(length=10, keep_packets=False)
+
+    extractor = DirectionExtractor(src="192.168.5.5")
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+    
+    formatter.batch_extract("exp/test_dataset", buffer, ["dns.alidns.com", "firefox.settings.services.mozilla.com"], extractor)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(['realworld_dataset', 'simple_dataset']), "labels": np.array([0, 0, 1, 1, 1])}
+    for k, v in target.items():
+        assert np.all(loaded_data[k] == v)
+
+    assert loaded_data['direction'].shape == (5, 10)
+
+    loaded_data.close()

@@ -111,7 +111,6 @@ def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, 
             stop_event.set()
             return
             
-        # print("Browsing Starts.......................")
         try:
             driver.get(url)
             time.sleep(timeout)
@@ -269,7 +268,7 @@ def batch_capture(base_dir, host_list, iface,
     use_proxy : boolean
         Whether to capture proxied traffic.
     """
-    def lunch_proxy(keylog, proxy_log):
+    def launch_proxy(keylog, proxy_log):
         # TODO: Currently, only Clash is supported. More proxy clients would be supported in the future.
         stdout = open(proxy_log, 'a+') if proxy_log is not None else subprocess.DEVNULL
 
@@ -296,8 +295,6 @@ def batch_capture(base_dir, host_list, iface,
 
     # Turn on system proxy
     if proxy_log is not None:
-        # os.environ["http_proxy"] = "http://127.0.0.1:7890"
-        # os.environ["https_proxy"] = "http://127.0.0.1:7890"
         stop_event = multiprocessing.Event()
 
     for i in range(repeat):
@@ -320,7 +317,7 @@ def batch_capture(base_dir, host_list, iface,
             # Launch Clash asynchronously
             if proxy_log is not None:
                 keylog = f"{base_dir}/{host}/proxy_keylog.txt"
-                monitor_process = multiprocessing.Process(target=lunch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
+                monitor_process = multiprocessing.Process(target=launch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
                 monitor_process.start()
             
             capture(url=url, 
@@ -338,14 +335,6 @@ def batch_capture(base_dir, host_list, iface,
                 stop_event.clear()
 
             time.sleep(5)  # Avoid previous session traffic to affect succeeding capture.
-            
-            # end_time = time.time()
-            # print(f"Captured {host}_{i:02d}.pcapng, time duration {end_time-start_time:.2f} seconds.")
-
-    # Turn off system proxy
-    # if proxy_log is not None:
-    #     os.environ.pop("http_proxy", None)
-    #     os.environ.pop("https_proxy", None)
 
 def SNI_extract(capture : Capture) -> set:
     """
@@ -359,6 +348,14 @@ def SNI_extract(capture : Capture) -> set:
                 tls_layer = packet['TLS']
                 if hasattr(tls_layer, 'handshake_extensions_server_name'):
                     SNI = tls_layer.handshake_extensions_server_name
+                    SNIs.add(SNI)
+            elif 'QUIC' in packet:
+                quic_layer = packet['QUIC']
+                # In Wireshark, TLS is embedded in QUIC and the same properties are used.
+                # However, in PyShark, it seems that one should use
+                # tls_handshake_extensions_server_name to fetch SNIs in the embedded TLS SNIs.
+                if hasattr(quic_layer, 'tls_handshake_extensions_server_name'):
+                    SNI = quic_layer.tls_handshake_extensions_server_name
                     SNIs.add(SNI)
         except AttributeError as e:
             # Handle packets that don't have the expected structure
@@ -389,8 +386,9 @@ def stream_number_extract(capture : Capture, check) -> set:
     ------
     set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
     """
-    stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
-    return stream_numbers
+    tcp_stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
+    udp_stream_numbers = set(pkt['UDP'].stream for pkt in capture if 'UDP' in pkt and check(pkt))
+    return tcp_stream_numbers, udp_stream_numbers
 
 def stream_extract_filter(stream_numbers : Union[list, set]):
     """
@@ -401,12 +399,23 @@ def stream_extract_filter(stream_numbers : Union[list, set]):
 
     return display_filter
 
-def stream_exclude_filter(stream_numbers : Union[list, set]):
+def stream_exclude_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
     """
     Remove the streams with the given stream_numbers from input_file, and write the other streams to output_file.
     """
-    extended_stream_numbers = ["tcp.stream != " + stream_number for stream_number in stream_numbers]
-    display_filter = " and ".join(extended_stream_numbers)
+    # When we use "tcp.stream != X", the filter implies "tcp and tcp.stream != X", which
+    # actually filter all UDP streams. However, in such case we do want to keep the possible
+    # UDP streams, and vise versa.
+
+    # Therefore, we now write it as (tcp and tcp.stream != X) or (udp and udp.stream != Y) to 
+    # achieve this.
+    tcp_display_filter = " and ".join(["tcp.stream != " + stream_number for stream_number in tcp_stream_numbers])
+    tcp_display_filter = f"(tcp and {tcp_display_filter})" if tcp_display_filter != "" else "tcp"
+    # Since each QUIC connection only occupies one UDP socket, we just need to filter those UDP streams out.
+    udp_display_filter = " and ".join(["udp.stream != " + stream_number for stream_number in udp_stream_numbers])
+    udp_display_filter = f"(udp and {udp_display_filter})" if udp_display_filter != "" else "udp"
+    # Filter ICMP to avoid Ping-over-DNS
+    display_filter = f'({tcp_display_filter} or {udp_display_filter}) and not icmp'
 
     return display_filter
 
@@ -419,6 +428,12 @@ def contains_SNI(SNIs, pkt):
         tls_layer = pkt['TLS']
         if hasattr(tls_layer, 'handshake_extensions_server_name'):
             SNI = tls_layer.handshake_extensions_server_name
+            if SNI in SNIs:
+                return True
+    elif 'QUIC' in pkt:
+        quic_layer = pkt['QUIC']
+        if hasattr(quic_layer, 'tls_handshake_extensions_server_name'):
+            SNI = quic_layer.tls_handshake_extensions_server_name
             if SNI in SNIs:
                 return True
             
@@ -444,7 +459,7 @@ def SNI_exclude_filter(file, SNIs):
     if SNIs is None or len(SNIs) == 0:
         return None
     client_hello_capture = pyshark.FileCapture(input_file=file, display_filter="tls.handshake.type == 1")
-    stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
+    tcp_stream_numbers, udp_stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
     client_hello_capture.close()
-    display_filter = stream_exclude_filter(stream_numbers)
+    display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
     return display_filter
