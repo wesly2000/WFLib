@@ -268,7 +268,7 @@ def batch_capture(base_dir, host_list, iface,
     use_proxy : boolean
         Whether to capture proxied traffic.
     """
-    def lunch_proxy(keylog, proxy_log):
+    def launch_proxy(keylog, proxy_log):
         # TODO: Currently, only Clash is supported. More proxy clients would be supported in the future.
         stdout = open(proxy_log, 'a+') if proxy_log is not None else subprocess.DEVNULL
 
@@ -317,7 +317,7 @@ def batch_capture(base_dir, host_list, iface,
             # Launch Clash asynchronously
             if proxy_log is not None:
                 keylog = f"{base_dir}/{host}/proxy_keylog.txt"
-                monitor_process = multiprocessing.Process(target=lunch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
+                monitor_process = multiprocessing.Process(target=launch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
                 monitor_process.start()
             
             capture(url=url, 

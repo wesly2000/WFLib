@@ -409,7 +409,7 @@ class DistriPcapFormatter(PcapFormatter):
         # hosts = [subdir.name for subdir in subdir_list]
         with multiprocessing.Manager() as manager:
             self._raw_buf = manager.list()
-            num_workers = 4  # For testing purpose.
+            num_workers = 6  # For testing purpose.
 
             with multiprocessing.Pool(num_workers) as pool:
                 # Note that multiprocessing uses pickle to dump the single-process task, and it re-import the task
