@@ -1,16 +1,14 @@
-# www.google.com
-# www.wikipedia.org
-# openai.com
-# www.wireshark.org
-# www.reddit.com
-# www.youtube.com
-# play.google.com
-# www.quora.com
-# github.com
-# gitee.com
-# telegram.org
-# zeek.org
-
+www.google.com
+www.wikipedia.org
+openai.com
+www.wireshark.org
+www.youtube.com
+play.google.com
+www.quora.com
+github.com
+gitee.com
+telegram.org
+zeek.org
 www.semanticscholar.org
 www.amazon.com
 www.netflix.com
@@ -34,8 +32,8 @@ www.ieee.org
 dl.acm.org
 ocw.mit.edu
 www.overleaf.com
-www.gnu.org
 music.youtube.com
 greasyfork.org
 www.v2ex.com
 www.docker.com
+www.apache.org
