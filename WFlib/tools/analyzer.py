@@ -70,9 +70,9 @@ def file_count(base_dir : Path):
     count the number of .pcap(ng) files and put the results in a dict.
     '''
     cnt = dict()
-    subdirs = filter(lambda x: x.is_dir(), base_dir.iterdir())
+    subdirs = list(filter(lambda x: x.is_dir(), base_dir.iterdir()))
 
-    for subdir in subdirs:
+    for subdir in sorted(subdirs):
         cnt[subdir.name] = sum(1 for _ in filter( # Only count pcap(ng) files
                 lambda x: x.is_file() and x.suffix in ['.pcapng', '.pcap'], subdir.iterdir()
                 )

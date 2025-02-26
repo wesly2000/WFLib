@@ -274,7 +274,7 @@ def batch_capture(base_dir, host_list, iface,
 
         clash_process = subprocess.Popen(
             ['/home/lxyu/clash/bin/clash-linux-amd64-debug', '-key-vmess', keylog],
-            stdout=subprocess.DEVNULL,
+            stdout=stdout,
             stderr=subprocess.STDOUT 
         )
         try:
