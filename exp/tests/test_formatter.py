@@ -275,6 +275,63 @@ def test_PcapFormatter_9():
 
     loaded_data.close()
 
+def test_PcapFormatter_10():
+    """
+    This test covers reading the first 10 packets from a .pcap file, and extract the timestamp feature.
+    This test makes feature vector length smaller than the number of packets to test truncation.
+    """
+    extractor = TimeExtractor()
+
+    formatter = PcapFormatter(length=10, display_filter="tcp.stream != 1")
+
+    formatter.load("exp/test_dataset/realworld_dataset/www.google.com.pcapng")
+    formatter.transform("www.google.com", 0, extractor)
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["www.google.com"]), 
+              "labels": np.array([0]), 
+              "time": np.array([[0.000000000, 0.019226000, 5.562068000, 5.562802000, 0, 0, 0, 0, 0, 0]])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
+def test_PcapFormatter_11():
+    """
+    This test covers reading the first 10 packets from a .pcap file, and extract the timestamp feature.
+    This test makes feature vector length smaller than the number of packets to test truncation.
+    """
+    extractor = TimeExtractor(src='192.168.5.5')
+
+    formatter = PcapFormatter(length=10, display_filter="quic")
+
+    formatter.load("exp/test_dataset/realworld_dataset/www.google.com.pcapng")
+    formatter.transform("www.google.com", 0, extractor)
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["www.google.com"]), 
+              "labels": np.array([0]), 
+              "time": np.array([[5.065814000, 5.065865000, -5.074124000, -5.074849000, -5.074850000, 
+                                 -5.074850000, -5.234382000, 5.236719000, -5.246387000, 5.475373000]])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
 def test_JsonFormatter_1():
     """
     This test covers reading a .json file, and extract the direction feature, truncate/pad it to given length,
