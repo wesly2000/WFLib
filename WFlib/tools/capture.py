@@ -23,7 +23,7 @@ import time
 import threading
 import multiprocessing
 import subprocess
-from typing import Union
+from typing import Union, Tuple
 from pathlib import Path
 from urllib.parse import urlparse
 import os
@@ -365,17 +365,15 @@ def SNI_extract(capture : Capture) -> set:
         process_packet(pkt)
     return SNIs
 
-def stream_number_extract(capture : Capture, check) -> set:
+def stream_number_extract(capture : Capture, check) -> Tuple[set, set]:
     """
     Extract all TCP stream numbers for the streams where at least one packet within satisfies
-    the condition required by the check.
+    the condition required by the check. This could be seen as a complementaty for display filter,
+    which only supports relatively simple rules.
 
     For example, if the check checks whether a TLS session is for SNI=www.baidu.com, it iterates
     over all the packets (all Client Hello's actually), if some packet contains the SNI, the tcp.stream
     numbers will be recorded.
-
-    TODO: Currently, the extractor only works for TCP-based protocols. Integrating the support for UDP will
-    be finished in the future. :)
 
     Parameter
     ---------

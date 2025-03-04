@@ -5,6 +5,7 @@ import pyshark
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
+apple_file = "exp/test_dataset/realworld_dataset/www.apple.com.pcapng"
 
 def test_SNI_extract_1():
     capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
@@ -41,7 +42,7 @@ def test_SNI_extract_2():
 
     capture.close()
 
-def test_stream_number_extract():
+def test_stream_number_extract_1():
     capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
     SNIs = SNI_extract(capture)
     
@@ -52,6 +53,25 @@ def test_stream_number_extract():
     assert tcp_stream_numbers == target
 
     capture.close()
+
+def test_stream_number_extract_2():
+    '''
+    This test covers the intersection of SNI and HTTP/2 DATA streams.
+    '''
+    capture_http2 = pyshark.FileCapture(input_file=apple_file, display_filter="http2.type == 0")
+    capture_tls = pyshark.FileCapture(input_file=apple_file, display_filter="tls.handshake.type == 1")
+    SNIs = ["is1-ssl.mzstatic.com"]
+
+    tcp_stream_numbers_http2, _ = stream_number_extract(capture=capture_http2, check=lambda pkt: True)
+    tcp_stream_numbers_tls, _ = stream_number_extract(capture=capture_tls, check=lambda pkt: contains_SNI(SNIs, pkt))
+
+    tcp_stream_numbers = tcp_stream_numbers_http2 & tcp_stream_numbers_tls
+    target = {'0'}
+
+    assert tcp_stream_numbers == target
+
+    capture_http2.close()
+    capture_tls.close()
 
 def test_stream_extract_filter():
     stream_numbers = []
