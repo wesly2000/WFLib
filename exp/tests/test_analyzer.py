@@ -1,19 +1,23 @@
 """
 This file covers tests for WFlib/tools/analyzer.py
 """
-from WFlib.tools.analyzer import packet_count, file_count
+from WFlib.tools.analyzer import packet_count, file_count, http2_bytes_count
 from pathlib import Path
+import pyshark
+
+baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
+google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
+apple_file = "exp/test_dataset/realworld_dataset/www.apple.com.pcapng"
 
 def test_packet_count_01():
     target = 8627
-    cnt = packet_count("exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng")
+    cnt = packet_count(baidu_proxied_file)
 
     assert target == cnt
 
 def test_packet_count_02():
     target = 8564
-    cnt = packet_count(file="exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng",
-                       display_filter="tcp")
+    cnt = packet_count(file=baidu_proxied_file, display_filter="tcp")
 
     assert target == cnt
 
@@ -27,3 +31,10 @@ def test_file_count():
 
     for k in result:
         assert result[k] == target[k]
+
+def test_http2():
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2")
+    target = 3242
+    result = http2_bytes_count(capture)
+    
+    assert target == result

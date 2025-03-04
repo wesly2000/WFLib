@@ -64,6 +64,22 @@ def packet_count(file, display_filter=None):
     cap.close()
     return cnt
 
+def http2_bytes_count(capture):
+    """
+    Count the number of bytes in HTTP/2 frames within the given capture.
+    """
+    preface_len = 24  # HTTP/2 Connection Preface
+    header_len = 9  # 9-octet header
+
+    result = 0
+    for packet in capture:
+        if "HTTP2" in packet:  # Check if HTTP/2 is present in the decrypted packet
+            h2_layers = filter(lambda layer: layer.layer_name == "http2", packet.layers)
+            h2_layer_lengths = map(lambda layer: int(layer.length) + header_len if hasattr(layer, "length") else preface_len, h2_layers)
+            result += sum(h2_layer_lengths)
+
+    return result
+
 def file_count(base_dir : Path):
     '''
     For each subdirectory (per represents a website) in the base_dir,
