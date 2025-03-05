@@ -4,6 +4,7 @@ This file covers tests for WFlib/tools/analyzer.py
 from WFlib.tools.analyzer import packet_count, file_count, http2_bytes_count
 from pathlib import Path
 import pyshark
+import os
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
@@ -33,7 +34,9 @@ def test_file_count():
         assert result[k] == target[k]
 
 def test_http2():
-    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2")
+    keylog_file = "exp/test_dataset/realworld_dataset/keylog.txt"
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
+                                  override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
     target = 3242
     result = http2_bytes_count(capture)
     
