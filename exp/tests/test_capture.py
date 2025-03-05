@@ -54,25 +54,6 @@ def test_stream_number_extract_1():
 
     capture.close()
 
-def test_stream_number_extract_2():
-    '''
-    This test covers the intersection of SNI and HTTP/2 DATA streams.
-    '''
-    capture_http2 = pyshark.FileCapture(input_file=apple_file, display_filter="http2.type == 0")
-    capture_tls = pyshark.FileCapture(input_file=apple_file, display_filter="tls.handshake.type == 1")
-    SNIs = ["is1-ssl.mzstatic.com"]
-
-    tcp_stream_numbers_http2, _ = stream_number_extract(capture=capture_http2, check=lambda pkt: True)
-    tcp_stream_numbers_tls, _ = stream_number_extract(capture=capture_tls, check=lambda pkt: contains_SNI(SNIs, pkt))
-
-    tcp_stream_numbers = tcp_stream_numbers_http2 & tcp_stream_numbers_tls
-    target = {'0'}
-
-    assert tcp_stream_numbers == target
-
-    capture_http2.close()
-    capture_tls.close()
-
 def test_stream_extract_filter():
     stream_numbers = []
     display_filter = stream_extract_filter(stream_numbers)
@@ -141,3 +122,14 @@ def test_SNI_exclude_filter_2():
                        display_filter=display_filter)
 
     assert target == cnt
+
+def test_h2data_SNI_intersect_1():
+    '''
+    This test covers the intersection of SNI and HTTP/2 DATA streams.
+    '''
+    SNIs = ["is1-ssl.mzstatic.com"]
+    keylog_file = "exp/test_dataset/realworld_dataset/keylog.txt"
+    tcp_stream_numbers, _ = h2data_SNI_intersect(file=apple_file, SNIs=SNIs, keylog_file=keylog_file)
+    target = {'0'}
+
+    assert tcp_stream_numbers == target
