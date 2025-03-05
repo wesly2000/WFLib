@@ -8,7 +8,7 @@ import os
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
-apple_file = "exp/test_dataset/realworld_dataset/www.apple.com.pcapng"
+apple_file = "exp/test_dataset/realworld_dataset/decryption/www.apple.com.pcapng"
 
 def test_packet_count_01():
     target = 8627
@@ -34,7 +34,7 @@ def test_file_count():
         assert result[k] == target[k]
 
 def test_http2():
-    keylog_file = "exp/test_dataset/realworld_dataset/keylog.txt"
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
     capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
                                   override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
     target = 3242

@@ -5,7 +5,7 @@ import pyshark
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
-apple_file = "exp/test_dataset/realworld_dataset/www.apple.com.pcapng"
+apple_file = "exp/test_dataset/realworld_dataset/decryption/www.apple.com.pcapng"
 
 def test_SNI_extract_1():
     capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
@@ -128,7 +128,7 @@ def test_h2data_SNI_intersect_1():
     This test covers the intersection of SNI and HTTP/2 DATA streams.
     '''
     SNIs = ["is1-ssl.mzstatic.com"]
-    keylog_file = "exp/test_dataset/realworld_dataset/keylog.txt"
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
     tcp_stream_numbers, _ = h2data_SNI_intersect(file=apple_file, SNIs=SNIs, keylog_file=keylog_file)
     target = {'0'}
 
