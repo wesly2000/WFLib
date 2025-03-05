@@ -55,14 +55,22 @@ def test_stream_number_extract_1():
     capture.close()
 
 def test_stream_extract_filter():
-    stream_numbers = []
-    display_filter = stream_extract_filter(stream_numbers)
+    tcp_stream_numbers, udp_stream_numbers = [], []
+    display_filter = stream_extract_filter(tcp_stream_numbers, udp_stream_numbers)
     target = ""
     assert display_filter == target
 
-    stream_numbers = ['1', '4', '3']
-    display_filter = stream_extract_filter(stream_numbers)
+    tcp_stream_numbers, udp_stream_numbers = ['1', '4', '3'], []
+    display_filter = stream_extract_filter(tcp_stream_numbers, udp_stream_numbers)
     target = "tcp.stream == 1 or tcp.stream == 4 or tcp.stream == 3"
+
+    tcp_stream_numbers, udp_stream_numbers = [], ['1', '4', '3']
+    display_filter = stream_extract_filter(tcp_stream_numbers, udp_stream_numbers)
+    target = "udp.stream == 1 or udp.stream == 4 or udp.stream == 3"
+
+    tcp_stream_numbers, udp_stream_numbers = ['1'], ['4', '3']
+    display_filter = stream_extract_filter(tcp_stream_numbers, udp_stream_numbers)
+    target = "tcp.stream == 1 or udp.stream == 4 or udp.stream == 3"
 
     assert display_filter == target
 

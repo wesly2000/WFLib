@@ -388,13 +388,19 @@ def stream_number_extract(capture : Capture, check) -> Tuple[set, set]:
     udp_stream_numbers = set(pkt['UDP'].stream for pkt in capture if 'UDP' in pkt and check(pkt))
     return tcp_stream_numbers, udp_stream_numbers
 
-def stream_extract_filter(stream_numbers : Union[list, set]):
+def stream_extract_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
     """
     Extract the streams with the given stream_numbers from input_file, and write the results to output_file.
     """
-    extended_stream_numbers = ["tcp.stream == " + stream_number for stream_number in stream_numbers]
-    display_filter = " or ".join(extended_stream_numbers)
+    tcp_display_filter = " or ".join(["tcp.stream == " + stream_number for stream_number in tcp_stream_numbers])
+    udp_display_filter = " or ".join(["udp.stream == " + stream_number for stream_number in udp_stream_numbers])
 
+    if tcp_display_filter == "":
+        display_filter = udp_display_filter
+    elif udp_display_filter == "":
+        display_filter = tcp_display_filter
+    else:
+        display_filter = f'{tcp_display_filter} or {udp_display_filter}'
     return display_filter
 
 def stream_exclude_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
