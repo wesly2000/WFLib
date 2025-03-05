@@ -117,10 +117,10 @@ def test_SNI_exclude_filter_2():
     target = 16
     SNIs = ['www.google.com', 'mobile.events.data.microsoft.com']
     display_filter = SNI_exclude_filter(google_file, SNIs)
+    cap = pyshark.FileCapture(input_file=google_file, display_filter=display_filter, only_summaries=True, keep_packets=False)
+    cnt = packet_count(cap)
 
-    cnt = packet_count(file=google_file,
-                       display_filter=display_filter)
-
+    cap.close()
     assert target == cnt
 
 def test_h2data_SNI_intersect_1():

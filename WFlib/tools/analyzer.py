@@ -53,15 +53,13 @@ def feature_attr(model, attr_method, X, y, num_classes):
     attr_values = np.array(attr_values)
     return attr_values  # Return the attribution values
 
-def packet_count(file, display_filter=None):
+def packet_count(capture):
     """
-    Count the number of packets in the given .pcap file, possible display filter may be applied.
+    Count the number of packets within the given capture, possible display filter may be applied.
     """
-    cap = pyshark.FileCapture(input_file=file, display_filter=display_filter, only_summaries=True, keep_packets=False)
     cnt = 0
-    for _ in cap:
+    for _ in capture:
         cnt += 1
-    cap.close()
     return cnt
 
 def http2_bytes_count(capture):

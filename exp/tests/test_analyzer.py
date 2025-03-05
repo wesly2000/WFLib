@@ -12,13 +12,19 @@ apple_file = "exp/test_dataset/realworld_dataset/decryption/www.apple.com.pcapng
 
 def test_packet_count_01():
     target = 8627
-    cnt = packet_count(baidu_proxied_file)
+    cap = pyshark.FileCapture(input_file=baidu_proxied_file, only_summaries=True, keep_packets=False)
+    cnt = packet_count(cap)
+
+    cap.close()
 
     assert target == cnt
 
 def test_packet_count_02():
     target = 8564
-    cnt = packet_count(file=baidu_proxied_file, display_filter="tcp")
+    cap = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tcp", only_summaries=True, keep_packets=False)
+    cnt = packet_count(cap)
+
+    cap.close()
 
     assert target == cnt
 
@@ -33,11 +39,13 @@ def test_file_count():
     for k in result:
         assert result[k] == target[k]
 
-def test_http2():
+def test_http2_bytes_count():
     keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
     capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
                                   override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
     target = 3242
     result = http2_bytes_count(capture)
+
+    capture.close()
     
     assert target == result
