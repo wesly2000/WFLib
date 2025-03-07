@@ -23,7 +23,7 @@ import time
 import threading
 import multiprocessing
 import subprocess
-from typing import Union, Tuple
+from typing import Union, Tuple, Any
 from pathlib import Path
 from urllib.parse import urlparse
 import os
@@ -468,20 +468,26 @@ def SNI_exclude_filter(file, SNIs):
     display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
     return display_filter
 
-def h2data_SNI_intersect(file, SNIs, keylog_file) -> Tuple[set, set]:
+def h2data_SNI_intersect(file, SNIs, keylog_file, custom_parameters = None) -> Tuple[set, set]:
     """
     Util function: for a given file, extract the TCP/UDP streams satisfying:
     1. It is the TLS stream with given SNIs;
     2. It contains HTTP/2 DATA frames.
     """
-    capture_h2data = pyshark.FileCapture(input_file=file, display_filter="http2.type == 0",
-                                         override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
-    capture_tls = pyshark.FileCapture(input_file=file, display_filter="tls.handshake.type == 1")
-    tcp_stream_numbers_h2data, udp_stream_numbers_h2data = stream_number_extract(capture=capture_h2data, check=lambda _: True)
+    capture_tls = pyshark.FileCapture(input_file=file, 
+                                      display_filter="tls.handshake.type == 1", 
+                                      custom_parameters=custom_parameters)
     tcp_stream_numbers_tls, udp_stream_numbers_tls = stream_number_extract(capture=capture_tls, check=lambda pkt: contains_SNI(SNIs, pkt))
-
-    capture_h2data.close()
     capture_tls.close()
+
+    SNI_filter = stream_extract_filter(tcp_stream_numbers_tls, udp_stream_numbers_tls)
+    
+    capture_h2data = pyshark.FileCapture(input_file=file, 
+                                         display_filter=f"({SNI_filter}) and http2.type == 0",
+                                         custom_parameters=custom_parameters,
+                                         override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    tcp_stream_numbers_h2data, udp_stream_numbers_h2data = stream_number_extract(capture=capture_h2data, check=lambda _: True)
+    capture_h2data.close()
 
     return tcp_stream_numbers_h2data & tcp_stream_numbers_tls, udp_stream_numbers_h2data & udp_stream_numbers_tls
 
