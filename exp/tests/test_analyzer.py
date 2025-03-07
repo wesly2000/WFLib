@@ -1,7 +1,7 @@
 """
 This file covers tests for WFlib/tools/analyzer.py
 """
-from WFlib.tools.analyzer import packet_count, file_count, http2_bytes_count
+from WFlib.tools.analyzer import *
 from pathlib import Path
 import pyshark
 import os
@@ -43,9 +43,20 @@ def test_http2_bytes_count():
     keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
     capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
                                   override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
-    target = 3242
-    result = http2_bytes_count(capture)
+    byte_target, packet_target = 3242, 9
+    byte_count, pkt_count = http2_bytes_count(capture)
 
     capture.close()
     
-    assert target == result
+    assert byte_target == byte_count and packet_target == pkt_count
+
+def test_tcp_bytes_count():
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
+                                  override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    byte_target, packet_target = 11408, 32
+    byte_count, pkt_count = tcp_bytes_count(capture)
+
+    capture.close()
+    
+    assert byte_target == byte_count and packet_target == pkt_count

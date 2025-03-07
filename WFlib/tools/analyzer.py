@@ -79,6 +79,20 @@ def http2_bytes_count(capture):
 
     return result, pkt_count
 
+def tcp_bytes_count(capture):
+    """
+    Count the number of bytes in HTTP/2 frames within the given capture.
+    """
+    pkt_count = 0
+    result = 0
+    for packet in capture:
+        if "TCP" in packet:  # Check if TCP is present in the decrypted packet
+            tcp_layer = packet['tcp']
+            result += int(tcp_layer.len) + int(tcp_layer.hdr_len)
+            pkt_count += 1
+
+    return result, pkt_count
+
 def file_count(base_dir : Path):
     '''
     For each subdirectory (per represents a website) in the base_dir,
