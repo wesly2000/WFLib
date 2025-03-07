@@ -62,37 +62,6 @@ def packet_count(capture):
         cnt += 1
     return cnt
 
-def http2_bytes_count(capture):
-    """
-    Count the number of bytes in HTTP/2 frames within the given capture.
-    """
-    preface_len = 24  # HTTP/2 Connection Preface
-    header_len = 9  # 9-octet header
-    pkt_count = 0
-    result = 0
-    for packet in capture:
-        if "HTTP2" in packet:  # Check if HTTP/2 is present in the decrypted packet
-            h2_layers = filter(lambda layer: layer.layer_name == "http2", packet.layers)
-            h2_layer_lengths = map(lambda layer: int(layer.length) + header_len if hasattr(layer, "length") else preface_len, h2_layers)
-            result += sum(h2_layer_lengths)
-            pkt_count += 1
-
-    return result, pkt_count
-
-def tcp_bytes_count(capture):
-    """
-    Count the number of bytes in HTTP/2 frames within the given capture.
-    """
-    pkt_count = 0
-    result = 0
-    for packet in capture:
-        if "TCP" in packet:  # Check if TCP is present in the decrypted packet
-            tcp_layer = packet['tcp']
-            result += int(tcp_layer.len) + int(tcp_layer.hdr_len)
-            pkt_count += 1
-
-    return result, pkt_count
-
 def file_count(base_dir : Path):
     '''
     For each subdirectory (per represents a website) in the base_dir,
@@ -108,3 +77,51 @@ def file_count(base_dir : Path):
             )
 
     return cnt
+
+
+class ByteCounter():
+    """
+    Abstraction of protocol specific byte counter.
+
+    Attribute
+    ---------
+    name : str
+        The name of the byte counter, commonly it should be the name the protocol.
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def count(self, pkt) -> int:
+        """
+        Count the byte number of proto layer within the given packet.
+        """
+        raise NotImplementedError()
+    
+
+class HTTP2ByteCounter(ByteCounter):
+    def __init__(self, name='http2'):
+        super().__init__(name)
+        self.preface_len = 24  # HTTP/2 Connection Preface
+        self.header_len = 9  # 9-octet header
+    
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "HTTP2" in pkt:  # Check if HTTP/2 is present in the decrypted packet
+            h2_layers = filter(lambda layer: layer.layer_name == "http2", pkt.layers)
+            h2_layer_lengths = map(lambda layer: int(layer.length) + self.header_len if hasattr(layer, "length") else self.preface_len, h2_layers)
+            cnt += sum(h2_layer_lengths)
+
+        return cnt
+    
+
+class TCPByteCounter(ByteCounter):
+    def __init__(self, name='tcp'):
+        super().__init__(name)
+
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "TCP" in pkt:  # Check if HTTP/2 is present in the decrypted packet
+            tcp_layer = pkt['tcp']
+            cnt += int(tcp_layer.len) + int(tcp_layer.hdr_len)
+
+        return cnt
