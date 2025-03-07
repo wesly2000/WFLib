@@ -68,15 +68,16 @@ def http2_bytes_count(capture):
     """
     preface_len = 24  # HTTP/2 Connection Preface
     header_len = 9  # 9-octet header
-
+    pkt_count = 0
     result = 0
     for packet in capture:
         if "HTTP2" in packet:  # Check if HTTP/2 is present in the decrypted packet
             h2_layers = filter(lambda layer: layer.layer_name == "http2", packet.layers)
             h2_layer_lengths = map(lambda layer: int(layer.length) + header_len if hasattr(layer, "length") else preface_len, h2_layers)
             result += sum(h2_layer_lengths)
+            pkt_count += 1
 
-    return result
+    return result, pkt_count
 
 def file_count(base_dir : Path):
     '''
