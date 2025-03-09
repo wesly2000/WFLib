@@ -43,15 +43,13 @@ def test_http2_bytes_count():
     counter = HTTP2ByteCounter()
 
     keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
-    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2 and http2",
                                   override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
     
     byte_count, pkt_count = 0, 0
     for pkt in capture:
-        cnt = counter.count(pkt)
-        if cnt > 0:
-            pkt_count += 1
-            byte_count += cnt
+        byte_count += counter.count(pkt)
+        pkt_count += 1
 
     byte_target, packet_target = 3242, 9
 
@@ -62,17 +60,30 @@ def test_http2_bytes_count():
 def test_tcp_bytes_count():
     counter = TCPByteCounter()
 
-    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
-    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
-                                  override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2")
     
     byte_count, pkt_count = 0, 0
     for pkt in capture:
-        cnt = counter.count(pkt)
-        if cnt > 0:
-            pkt_count += 1
-            byte_count += cnt
+        byte_count += counter.count(pkt)
+        pkt_count += 1
+
     byte_target, packet_target = 11408, 32
+
+    capture.close()
+    
+    assert byte_target == byte_count and packet_target == pkt_count
+
+def test_tls_bytes_count():
+    counter = TLSByteCounter()
+
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2 and tls")
+    
+    byte_count, pkt_count = 0, 0
+    for pkt in capture:
+        byte_count += counter.count(pkt)
+        pkt_count += 1
+
+    byte_target, packet_target = 10347, 16
 
     capture.close()
     

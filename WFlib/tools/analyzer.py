@@ -114,6 +114,26 @@ class HTTP2ByteCounter(ByteCounter):
         return cnt
     
 
+class TLSByteCounter(ByteCounter):
+    def __init__(self, name='tls'):
+        super().__init__(name)
+        self.type_len = 1  # TLS record type
+        self.ver_len = 2  # TLS version
+        self.length_len = 1  # TLS record length
+
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "TLS" in pkt:  
+            tls_layers = filter(lambda layer: layer.layer_name == "tls", pkt.layers)  # One packet may contain multiple TLS layers
+            for tls_layer in tls_layers:  # Each TLS layer may contain multiple TLS records
+                for rl in tls_layer.record_length.all_fields:
+                    cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
+            # tls_layer_lengths = map(lambda layer: int(layer.record_length) + self.type_len + self.ver_len + self.length_len, tls_layers)
+            # cnt += sum(tls_layer_lengths)
+
+        return cnt
+
+
 class TCPByteCounter(ByteCounter):
     def __init__(self, name='tcp'):
         super().__init__(name)
