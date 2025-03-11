@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Formatter(object):
     """
     This class provides a universal format transformer between np.array (or tensor) between all other
@@ -25,7 +26,7 @@ class Formatter(object):
         self.origin_buf = None
         self.buf = None 
 
-    def load(self, file) -> Exception:
+    def load(self, file):
         """
         The load method that read in files specified by path into origin_buf.
 
@@ -33,22 +34,12 @@ class Formatter(object):
         ------
         file : file|str
             The file path to be read.
-
-        Returns
-        -------
-        Exception
-            To indicate the error in reading IO, None if no error occurs.
         """
         return NotImplementedError
-    
-    def transform(self) -> Exception:
+
+    def transform(self):
         """
         Transform the origin_buf to buf, which is the operation to transform any data into dict form.
-
-        Returns
-        -------
-        Exception
-            To indicate the error in reading IO, None if no error occurs.
         """
         return NotImplementedError
 
@@ -60,6 +51,15 @@ class Formatter(object):
         ------
         file : file|str
             The file path to be read.
-
         """
-        np.savez()
+        np.savez(file, **self.buf)
+
+class PCAPFormatter(Formatter):
+    """
+    The class that transforms .pcap file to .npz file.
+    """
+
+class JSONFormatter(Formatter):
+    """
+    The class that transforms .json file to .npz file.
+    """
