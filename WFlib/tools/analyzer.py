@@ -2,6 +2,8 @@ from captum import attr
 from tqdm import tqdm
 import torch
 import numpy as np
+import pyshark 
+from pathlib import Path
 
 def feature_attr(model, attr_method, X, y, num_classes):
     """
@@ -50,3 +52,98 @@ def feature_attr(model, attr_method, X, y, num_classes):
     
     attr_values = np.array(attr_values)
     return attr_values  # Return the attribution values
+
+def packet_count(capture):
+    """
+    Count the number of packets within the given capture, possible display filter may be applied.
+    """
+    cnt = 0
+    for _ in capture:
+        cnt += 1
+    return cnt
+
+def file_count(base_dir : Path):
+    '''
+    For each subdirectory (per represents a website) in the base_dir,
+    count the number of .pcap(ng) files and put the results in a dict.
+    '''
+    cnt = dict()
+    subdirs = list(filter(lambda x: x.is_dir(), base_dir.iterdir()))
+
+    for subdir in sorted(subdirs):
+        cnt[subdir.name] = sum(1 for _ in filter( # Only count pcap(ng) files
+                lambda x: x.is_file() and x.suffix in ['.pcapng', '.pcap'], subdir.iterdir()
+                )
+            )
+
+    return cnt
+
+
+class ByteCounter():
+    """
+    Abstraction of protocol specific byte counter.
+
+    Attribute
+    ---------
+    name : str
+        The name of the byte counter, commonly it should be the name the protocol.
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def count(self, pkt) -> int:
+        """
+        Count the byte number of proto layer within the given packet.
+        """
+        raise NotImplementedError()
+    
+
+class HTTP2ByteCounter(ByteCounter):
+    def __init__(self, name='http2'):
+        super().__init__(name)
+        self.preface_len = 24  # HTTP/2 Connection Preface
+        self.header_len = 9  # 9-octet header
+    
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "HTTP2" in pkt:  # Check if HTTP/2 is present in the decrypted packet
+            h2_layers = filter(lambda layer: layer.layer_name == "http2", pkt.layers)
+            h2_layer_lengths = map(lambda layer: int(layer.length) + self.header_len if hasattr(layer, "length") else self.preface_len, h2_layers)
+            cnt += sum(h2_layer_lengths)
+
+        return cnt
+    
+
+class TLSByteCounter(ByteCounter):
+    def __init__(self, name='tls'):
+        super().__init__(name)
+        self.type_len = 1  # TLS record type
+        self.ver_len = 2  # TLS version
+        self.length_len = 1  # TLS record length
+
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "TLS" in pkt:  
+            tls_layers = filter(lambda layer: layer.layer_name == "tls", pkt.layers)  # One packet may contain multiple TLS layers
+            for tls_layer in tls_layers:  # Each TLS layer may contain multiple TLS records
+                # The method to iterate through all records within a TLS layer is provided by
+                # https://github.com/KimiNewt/pyshark/issues/419
+                for rl in tls_layer.record_length.all_fields:
+                    cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
+            # tls_layer_lengths = map(lambda layer: int(layer.record_length) + self.type_len + self.ver_len + self.length_len, tls_layers)
+            # cnt += sum(tls_layer_lengths)
+
+        return cnt
+
+
+class TCPByteCounter(ByteCounter):
+    def __init__(self, name='tcp'):
+        super().__init__(name)
+
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "TCP" in pkt:  # Check if HTTP/2 is present in the decrypted packet
+            tcp_layer = pkt['tcp']
+            cnt += int(tcp_layer.len) + int(tcp_layer.hdr_len)
+
+        return cnt

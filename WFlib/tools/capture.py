@@ -11,18 +11,30 @@ sniff                    v------------------------------------------------------
 capture                  |--------------------------------------------------------------------------|
 """
 
+from selenium.common.exceptions import WebDriverException
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 
-from scapy.all import sniff, wrpcap
 import pyshark
 from pyshark.capture.capture import Capture
 
 import time
 import threading
+import multiprocessing
+import subprocess
+from typing import Union, Tuple, Any
+from pathlib import Path
+from urllib.parse import urlparse
+import os
+import time
+import logging
+import shutil
 
-gecko_path = r'/usr/local/bin/geckodriver'
+logger = logging.getLogger('selenium')
+logger.setLevel(logging.WARN)
+
+gecko_path = shutil.which('geckodriver')
 
 """
 This filter is a Capture Filter to filter the annoying traffic which, with high probability, is NOT related with the
@@ -32,25 +44,39 @@ the capture.
 
 The semantics of the filter is that we ONLY want TCP or UDP packets, but the following protocols are NOT considered:
 
-LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389), DOT (853), HTTP (80)
+LLMNR (5355), MDNS (5353), SOAP (3702), NTP (123), SSDP (1900), SSH (22), RDP (3389), DOT (853), HTTP (80), Radan HTTP (8088),
+YDService (5574), tat_agent (8186)
 
 NOTE: This filter is not exhausted, and further updates are possible in the future.
 NOTE: Plain HTTP (port 80) is excluded after some consideration, since most of the request are based on HTTPS 
 """
-common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80) and (tcp or udp)'
+common_filter = 'not (port 53 or port 22 or port 3389 or port 5355 or port 5353 or port 3702 or port 123 or port 1900 or port 853 or port 80 or port 8088 or port 5574 or port 8186) and (tcp or udp)'
 
-def capture(url, timeout, iface, output_file, log_output=None):
-    stop_event = threading.Event()
+def capture(url, iface, output_file, timeout=200, capture_filter=common_filter, ill_files=None, log_output=None, proxy_log=None):
+    stop_event = multiprocessing.Event()
 
-    def _sniff(iface, output_file):
-        print("Capturing Starts.......................")
-        capture = sniff(iface=iface, filter=common_filter, stop_filter=lambda _: stop_event.is_set())
-        wrpcap(output_file, capture)
-        print("Capturing Ends.......................")
+    def _sniff():
+        tshark_process = subprocess.Popen(
+            ['tshark', '-i', iface, '-f', capture_filter, '-w', output_file,],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL 
+        )
+        try:
+            # Monitor the event
+            while not stop_event.is_set():
+                time.sleep(.1)  # Poll every second
+            tshark_process.terminate()
+            tshark_process.wait()
+        except Exception as e:
+            print(f"Error in subprocess: {e}")
+        finally:
+            if tshark_process.poll() is None:
+                tshark_process.terminate()
 
-    def browse(url, timeout, log_output=None):
-        time.sleep(1) # maybe waiting for interface to be ready?
-        service = Service(executable_path=gecko_path, log_output=log_output)
+    def browse():
+        time.sleep(2) # maybe waiting for interface to be ready?
+        
+        service = Service(executable_path=gecko_path, log_output=None)
 
         options = Options()
         options.add_argument("--headless") 
@@ -59,23 +85,256 @@ def capture(url, timeout, iface, output_file, log_output=None):
         options.set_preference("browser.cache.offline.enable", False)
         options.set_preference("network.http.use-cache", False)
 
-        driver = webdriver.Firefox(options=options, service=service)
-        print("Browsing Starts.......................")
-        driver.get(url)
-        time.sleep(timeout)
+        # Configure proxy options for Firefox
+        if proxy_log is not None:
+            options.set_preference("network.proxy.type", 1)
+            options.set_preference("network.proxy.http", "127.0.0.1")
+            options.set_preference("network.proxy.http_port", 7890)
+            options.set_preference('network.proxy.socks', '127.0.0.1')
+            options.set_preference('network.proxy.socks_port', 7890)
+            options.set_preference('network.proxy.socks_remote_dns', False)
+            options.set_preference("network.proxy.ssl", "127.0.0.1")
+            options.set_preference("network.proxy.ssl_port", 7890)
+            options.set_preference("webdriver_accept_untrusted_certs", True)
+            options.set_preference("webdriver_assume_untrusted_issuer", False)
+
+        try:
+            driver = webdriver.Firefox(options=options, service=service)
+        except WebDriverException as e:
+            if log_output is not None:
+                with open(log_output, 'a+') as f:
+                    f.write(f"The file {output_file} raises the exception: {e}\n")
+            if ill_files is not None:
+                with open(ill_files, 'a+') as f:
+                    f.write(f"{output_file}\n")
+            time.sleep(2)
+            stop_event.set()
+            return
+            
+        try:
+            driver.get(url)
+            time.sleep(timeout)
+        except Exception as e:
+            if log_output is not None:
+                with open(log_output, 'a+') as f:
+                    f.write(f"The file {output_file} raises the exception: {e}\n")
+            if ill_files is not None:
+                with open(ill_files, 'a+') as f:
+                    f.write(f"{output_file}\n")
+        driver.quit()
+        
+        time.sleep(2)
         # Notify the capture thread that the capturing process is over.
         stop_event.set()
-        driver.quit()
-        print("Browsing Ends.......................")
 
-    browse_thread = threading.Thread(target=browse, kwargs={"url": url, "timeout": timeout})
-    capture_thread = threading.Thread(target=_sniff, kwargs={"iface": iface, "output_file": output_file})
-
-    capture_thread.start()
+    browse_thread = threading.Thread(target=browse)
+    monitor_process = multiprocessing.Process(target=_sniff)
+    
+    monitor_process.start()
     browse_thread.start()
 
     browse_thread.join()
-    capture_thread.join()
+    monitor_process.join()
+
+def read_host_list(file) -> list:
+    """
+    Read the hostname list file, remove the possible duplicates, and store the results into a list.
+    """
+    def strip_url(url : str) -> str:
+        """
+        To strip possible protocol descriptors in the URL, e.g., https://.
+        """
+        if '://' in url: # TODO: Awkward check, make it more robust
+            parsed_url = urlparse(url)
+            hostname = parsed_url.netloc
+            return hostname
+        else:
+            return url
+        
+    host_list = []
+    with open(file, 'r') as f:
+        for line in f:
+            stripped_line = line.strip()  # Remove leading and trailing whitespace
+            if stripped_line.startswith("#"):
+                continue  # Ignore comment lines
+
+            url = stripped_line.split("#")[0].strip() # Ignore inline comments
+            hostname = strip_url(url.strip())
+            if hostname and hostname not in host_list:
+                host_list.append(hostname)
+
+    return host_list
+
+def decide_output_file_idx(directory : Path) -> int:
+    """
+    Utility function to enable continuous capture, i.e., capture on the same base_dir for multiple times.
+    The idea here is to check if the host has been captured previously. If so, fetch the .pcap(ng) file name
+    with the largest index, and plus 1 on it for appending. Otherwise, simply return base for directory creation.
+
+    For example, if the original directory is as follows.
+    ```
+    base_dir
+       |---www.baidu.com
+       |         |---www.baidu.com_00.pcapng
+       |         |---www.baidu.com_02.pcapng (Note that 01 was missing due to some reason)
+       |
+       |---www.google.com
+       |         |---www.google.com_00.pcapng
+    ```
+
+    And the capture list is ['www.baidu.com', 'www.google.com', 'www.zhihu.com'], repeat is set to 1. Then, after performing
+    capture, the directory should be as follows.
+    ```
+    base_dir
+       |---www.baidu.com
+       |         |---www.baidu.com_00.pcapng
+       |         |---www.baidu.com_02.pcapng 
+       |         |---www.baidu.com_03.pcapng
+       |
+       |---www.google.com
+       |         |---www.google.com_00.pcapng
+       |         |---www.google.com_01.pcapng
+       |
+       |---www.zhihu.com
+       |         |---www.zhihu.com_00.pcapng
+    ```
+    """
+    
+    if not os.path.exists(directory):
+        return 0 
+    max_idx = 0
+    for file in directory.iterdir():
+        if file.is_file() and file.suffix in ['.pcapng', '.pcap']:  # Ensure it's a .pcap(ng) file
+            cur_idx = int(file.name.split('_')[-1].split('.')[0])
+            max_idx = max(cur_idx, max_idx)
+
+    return 1 + max_idx
+
+def batch_capture(base_dir, host_list, iface, 
+                  capture_fileter=common_filter, 
+                  repeat=20, 
+                  timeout=200, 
+                  ill_files=None,
+                  log_output=None,
+                  proxy_log=None):
+    """
+    Capture the traffic of a list of hosts. The capturing and storing process is illustrated as follows.
+    Suppose the host_list = [www.baidu.com, www.zhihu.com, www.google.com], and the base_dir is set to
+    $home. Moreover, repeat is set to 2. Then, the resulting capture directory should be
+
+    ```
+    $home
+      |------www.baidu.com
+      |            |---------www.baidu.com_00.pcap
+      |            |---------www.baidu.com_01.pcap
+      |
+      |------www.zhihu.com
+      |            |---------www.zhihu.com_00.pcap
+      |            |---------www.zhihu.com_01.pcap
+      |
+      |------www.google.com
+      |             |---------www.google.com_00.pcap
+      |             |---------www.google.com_01.pcap
+    ```
+
+    NOTE: Currently, batch_capture by default using HTTPS for requesting. So the caller needs not
+    to add 'https://' before the hostname.
+
+    Params
+    ------
+    base_dir : str
+        The base directory to hold all captures for each hostname.
+
+    host_list : list
+        The list of hostnames to perform capture.
+
+    iface : str
+        The inferface to perform capture.
+
+    capture_filter : str
+        The capture filter using the BPF syntax to pass to tshark, common_filter is used by default.
+
+    repeat : int
+        The number of repetitive capture towards the same hostname, note that repeat should be large
+        enough (>=20) to obtain a stable website fingerprint.
+
+    timeout : int
+        The amount of seconds after which the headless browser would stop. Timeout should be large
+        enough for the website to load entirely.
+
+    log_output : str
+        The path for Selenium to record the debug log files.
+
+    use_proxy : boolean
+        Whether to capture proxied traffic.
+    """
+    def launch_proxy(keylog, proxy_log):
+        # TODO: Currently, only Clash is supported. More proxy clients would be supported in the future.
+        stdout = open(proxy_log, 'a+') if proxy_log is not None else subprocess.DEVNULL
+
+        clash_process = subprocess.Popen(
+            ['/home/lxyu/clash/bin/clash-linux-amd64-debug', '-key-vmess', keylog],
+            stdout=stdout,
+            stderr=subprocess.STDOUT 
+        )
+        try:
+            # Monitor the event
+            while not stop_event.is_set():
+                time.sleep(.1)  # Poll every second
+            clash_process.terminate()
+            clash_process.wait()
+        except Exception as e:
+            print(f"Error in subprocess: {e}")
+        finally:
+            if clash_process.poll() is None:
+                clash_process.terminate()
+
+    proto_header = "https://"
+    # Handle directory, create if necessary. 
+    # Ref: https://stackoverflow.com/questions/273192/how-do-i-create-a-directory-and-any-missing-parent-directories
+
+    # Turn on system proxy
+    if proxy_log is not None:
+        stop_event = multiprocessing.Event()
+
+    for i in range(repeat):
+        for host in host_list:
+            # Create a proper subdirectory for each host. Set parents=True to create base_dir if needed.
+            # set exist_ok=True to avoid FileExistsError.
+            host = host.strip()
+            output_dir = Path("{}/{}".format(base_dir, host))
+
+            output_file_idx = decide_output_file_idx(directory=output_dir)
+            output_file = os.path.join(base_dir, host, "{}_{}.pcapng".format(host, output_file_idx))
+            
+            output_dir.mkdir(parents=True, exist_ok=True)
+            url = proto_header + host
+            # start_time = time.time()
+
+            ssl_keylog_file = f"{base_dir}/{host}/keylog.txt"
+            os.environ["SSLKEYLOGFILE"] = ssl_keylog_file
+
+            # Launch Clash asynchronously
+            if proxy_log is not None:
+                keylog = f"{base_dir}/{host}/proxy_keylog.txt"
+                monitor_process = multiprocessing.Process(target=launch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
+                monitor_process.start()
+            
+            capture(url=url, 
+                    timeout=timeout, 
+                    iface=iface, 
+                    output_file=output_file,
+                    capture_filter=capture_fileter,
+                    ill_files=ill_files,
+                    log_output=log_output,
+                    proxy_log=proxy_log)
+            
+            if proxy_log is not None:
+                stop_event.set()
+                monitor_process.join()
+                stop_event.clear()
+
+            time.sleep(5)  # Avoid previous session traffic to affect succeeding capture.
 
 def SNI_extract(capture : Capture) -> set:
     """
@@ -90,6 +349,14 @@ def SNI_extract(capture : Capture) -> set:
                 if hasattr(tls_layer, 'handshake_extensions_server_name'):
                     SNI = tls_layer.handshake_extensions_server_name
                     SNIs.add(SNI)
+            elif 'QUIC' in packet:
+                quic_layer = packet['QUIC']
+                # In Wireshark, TLS is embedded in QUIC and the same properties are used.
+                # However, in PyShark, it seems that one should use
+                # tls_handshake_extensions_server_name to fetch SNIs in the embedded TLS SNIs.
+                if hasattr(quic_layer, 'tls_handshake_extensions_server_name'):
+                    SNI = quic_layer.tls_handshake_extensions_server_name
+                    SNIs.add(SNI)
         except AttributeError as e:
             # Handle packets that don't have the expected structure
             print(f"Error processing packet: {e}")
@@ -98,17 +365,15 @@ def SNI_extract(capture : Capture) -> set:
         process_packet(pkt)
     return SNIs
 
-def stream_number_extract(capture : Capture, check) -> set:
+def stream_number_extract(capture : Capture, check) -> Tuple[set, set]:
     """
     Extract all TCP stream numbers for the streams where at least one packet within satisfies
-    the condition required by the check.
+    the condition required by the check. This could be seen as a complementaty for display filter,
+    which only supports relatively simple rules.
 
     For example, if the check checks whether a TLS session is for SNI=www.baidu.com, it iterates
     over all the packets (all Client Hello's actually), if some packet contains the SNI, the tcp.stream
     numbers will be recorded.
-
-    TODO: Currently, the extractor only works for TCP-based protocols. Integrating the support for UDP will
-    be finished in the future. :)
 
     Parameter
     ---------
@@ -119,11 +384,110 @@ def stream_number_extract(capture : Capture, check) -> set:
     ------
     set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
     """
-    stream_numbers = set(pkt['TCP'].stream for pkt in capture if check(pkt))
-    return stream_numbers
+    tcp_stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
+    udp_stream_numbers = set(pkt['UDP'].stream for pkt in capture if 'UDP' in pkt and check(pkt))
+    return tcp_stream_numbers, udp_stream_numbers
 
-def stream_extract(input_file : str, stream_numbers : list|set, output_file : str):
+def stream_extract_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
     """
     Extract the streams with the given stream_numbers from input_file, and write the results to output_file.
     """
-    pass
+    tcp_display_filter = " or ".join(["tcp.stream == " + stream_number for stream_number in tcp_stream_numbers])
+    udp_display_filter = " or ".join(["udp.stream == " + stream_number for stream_number in udp_stream_numbers])
+
+    if tcp_display_filter == "":
+        display_filter = udp_display_filter
+    elif udp_display_filter == "":
+        display_filter = tcp_display_filter
+    else:
+        display_filter = f'{tcp_display_filter} or {udp_display_filter}'
+    return display_filter
+
+def stream_exclude_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
+    """
+    Remove the streams with the given stream_numbers from input_file, and write the other streams to output_file.
+    """
+    # When we use "tcp.stream != X", the filter implies "tcp and tcp.stream != X", which
+    # actually filter all UDP streams. However, in such case we do want to keep the possible
+    # UDP streams, and vise versa.
+
+    # Therefore, we now write it as (tcp and tcp.stream != X) or (udp and udp.stream != Y) to 
+    # achieve this.
+    tcp_display_filter = " and ".join(["tcp.stream != " + stream_number for stream_number in tcp_stream_numbers])
+    tcp_display_filter = f"(tcp and {tcp_display_filter})" if tcp_display_filter != "" else "tcp"
+    # Since each QUIC connection only occupies one UDP socket, we just need to filter those UDP streams out.
+    udp_display_filter = " and ".join(["udp.stream != " + stream_number for stream_number in udp_stream_numbers])
+    udp_display_filter = f"(udp and {udp_display_filter})" if udp_display_filter != "" else "udp"
+    # Filter ICMP to avoid Ping-over-DNS
+    display_filter = f'({tcp_display_filter} or {udp_display_filter}) and not icmp'
+
+    return display_filter
+
+def contains_SNI(SNIs, pkt):
+    if SNIs is None or len(SNIs) == 0:
+        return False
+    result = False
+
+    if 'TLS' in pkt:
+        tls_layer = pkt['TLS']
+        if hasattr(tls_layer, 'handshake_extensions_server_name'):
+            SNI = tls_layer.handshake_extensions_server_name
+            if SNI in SNIs:
+                return True
+    elif 'QUIC' in pkt:
+        quic_layer = pkt['QUIC']
+        if hasattr(quic_layer, 'tls_handshake_extensions_server_name'):
+            SNI = quic_layer.tls_handshake_extensions_server_name
+            if SNI in SNIs:
+                return True
+            
+    return result
+
+def SNI_exclude_filter(file, SNIs):
+    """
+    Create a display filter for the given .pcap file which exclude all the TCP streams that contains the SNI in SNIs.
+
+    Params
+    ------
+    file : str
+        The file path to the .pcap(ng) file.
+
+    SNIs : list
+        The SNIs for each of which to exclude the corresponding TCP stream.
+
+    Returns
+    -------
+    filter : str
+        The display filter created from the .pcap file and SNIs.
+    """
+    if SNIs is None or len(SNIs) == 0:
+        return None
+    client_hello_capture = pyshark.FileCapture(input_file=file, display_filter="tls.handshake.type == 1")
+    tcp_stream_numbers, udp_stream_numbers = stream_number_extract(capture=client_hello_capture, check=lambda pkt: contains_SNI(SNIs, pkt))
+    client_hello_capture.close()
+    display_filter = stream_exclude_filter(tcp_stream_numbers, udp_stream_numbers)
+    return display_filter
+
+def h2data_SNI_intersect(file, SNIs, keylog_file, custom_parameters = None) -> Tuple[set, set]:
+    """
+    Util function: for a given file, extract the TCP/UDP streams satisfying:
+    1. It is the TLS stream with given SNIs;
+    2. It contains HTTP/2 DATA frames.
+    """
+    capture_tls = pyshark.FileCapture(input_file=file, 
+                                      display_filter="tls.handshake.type == 1", 
+                                      custom_parameters=custom_parameters)
+    tcp_stream_numbers_tls, udp_stream_numbers_tls = stream_number_extract(capture=capture_tls, check=lambda pkt: contains_SNI(SNIs, pkt))
+    capture_tls.close()
+
+    SNI_filter = stream_extract_filter(tcp_stream_numbers_tls, udp_stream_numbers_tls)
+    
+    capture_h2data = pyshark.FileCapture(input_file=file, 
+                                         display_filter=f"({SNI_filter}) and http2.type == 0",
+                                         custom_parameters=custom_parameters,
+                                         override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    tcp_stream_numbers_h2data, udp_stream_numbers_h2data = stream_number_extract(capture=capture_h2data, check=lambda _: True)
+    capture_h2data.close()
+
+    return tcp_stream_numbers_h2data & tcp_stream_numbers_tls, udp_stream_numbers_h2data & udp_stream_numbers_tls
+

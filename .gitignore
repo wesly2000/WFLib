@@ -166,3 +166,8 @@ checkpoints
 logs
 tmp_files
 analysis
+
+# Some capture files
+exp/normal_capture
+exp/example_capture
+exp/vmess_capture
