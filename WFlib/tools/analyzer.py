@@ -126,6 +126,8 @@ class TLSByteCounter(ByteCounter):
         if "TLS" in pkt:  
             tls_layers = filter(lambda layer: layer.layer_name == "tls", pkt.layers)  # One packet may contain multiple TLS layers
             for tls_layer in tls_layers:  # Each TLS layer may contain multiple TLS records
+                # The method to iterate through all records within a TLS layer is provided by
+                # https://github.com/KimiNewt/pyshark/issues/419
                 for rl in tls_layer.record_length.all_fields:
                     cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
             # tls_layer_lengths = map(lambda layer: int(layer.record_length) + self.type_len + self.ver_len + self.length_len, tls_layers)
