@@ -9,6 +9,7 @@ import os
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
 apple_file = "exp/test_dataset/realworld_dataset/decryption/www.apple.com.pcapng"
+tiktok_file = "exp/test_dataset/realworld_dataset/decryption/www.tiktok.com.pcapng"
 
 def test_packet_count_01():
     target = 8627
@@ -88,3 +89,13 @@ def test_tls_bytes_count():
     capture.close()
     
     assert byte_target == byte_count and packet_target == pkt_count
+
+def test_quic_bytes_count():
+    counter = QUICByteCounter()
+
+    capture = pyshark.FileCapture(input_file=tiktok_file, display_filter="udp.stream == 0 and quic")
+
+    byte_count, pkt_count = 55878, 80
+    for pkt in capture:
+        byte_count += counter.count(pkt)
+        pkt_count += 1

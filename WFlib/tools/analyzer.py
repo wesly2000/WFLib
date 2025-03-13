@@ -78,8 +78,10 @@ def file_count(base_dir : Path):
 
     return cnt
 
+# TODO: Consider replace all the non-HTTP counter's count method to only count the underlying
+# TCP/UDP payload length.
 
-class ByteCounter():
+class PacketByteCounter():
     """
     Abstraction of protocol specific byte counter.
 
@@ -97,8 +99,13 @@ class ByteCounter():
         """
         raise NotImplementedError()
     
+class HTTP3ByteCounter(PacketByteCounter):
+    def __init__(self, name='http3'):
+        super().__init__(name)
+        self.header_len = 9  # 9-octet header
+    
 
-class HTTP2ByteCounter(ByteCounter):
+class HTTP2ByteCounter(PacketByteCounter):
     def __init__(self, name='http2'):
         super().__init__(name)
         self.preface_len = 24  # HTTP/2 Connection Preface
@@ -114,7 +121,7 @@ class HTTP2ByteCounter(ByteCounter):
         return cnt
     
 
-class TLSByteCounter(ByteCounter):
+class TLSByteCounter(PacketByteCounter):
     def __init__(self, name='tls'):
         super().__init__(name)
         self.type_len = 1  # TLS record type
@@ -134,9 +141,32 @@ class TLSByteCounter(ByteCounter):
             # cnt += sum(tls_layer_lengths)
 
         return cnt
+    
 
+class QUICByteCounter(PacketByteCounter):
+    def __init__(self, name='quic'):
+        super().__init__(name)
+        self.udp_hdr_len = 8  # UDP header length
 
-class TCPByteCounter(ByteCounter):
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "QUIC" in pkt:  
+            quic_packets = filter(lambda layer: layer.layer_name == "quic", pkt.layers)  # One packet may contain multiple QUIC packets (QUIC uses packet instead of layer)
+            for quic_packet in quic_packets:  
+                # If the packet has coalesced padding data, the length of the packet is equal to the
+                # UDP payload data length. See the discussions below:
+                # https://github.com/quicwg/base-drafts/issues/3333 (0-padding outside of QUIC packets)
+                # https://github.com/mozilla/neqo/pull/1850 (0-padding seems not changed)
+                if hasattr(quic_packet, "coalesced_padding_data"):
+                    cnt = int(pkt['udp'].length) - self.udp_hdr_len
+                    break
+                # It seems that a QUIC packet already contains the length of the packet.
+                # We don't need to calculate each QUIC frame length as TLS records.
+                cnt += int(quic_packet.packet_length)
+
+        return cnt
+
+class TCPByteCounter(PacketByteCounter):
     def __init__(self, name='tcp'):
         super().__init__(name)
 
