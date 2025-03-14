@@ -90,6 +90,23 @@ def test_tls_bytes_count():
     
     assert byte_target == byte_count and packet_target == pkt_count
 
+def test_udp_bytes_count():
+    counter = UDPByteCounter()
+
+    capture = pyshark.FileCapture(input_file=tiktok_file, display_filter="udp.stream == 0")
+
+    byte_count, pkt_count = 0, 0
+
+    for pkt in capture:
+        byte_count += counter.count(pkt)
+        pkt_count += 1
+
+    byte_target, packet_target = 56518, 80
+
+    capture.close() 
+
+    assert byte_target == byte_count and packet_target == pkt_count
+
 def test_quic_bytes_count():
     counter = QUICByteCounter()
 
@@ -141,3 +158,22 @@ def test_capture_counter_1():
     assert  result['tcp'][0] == 32 and result['tcp'][1] == 11408 and \
             result['tls'][0] == 16 and result['tls'][1] == 10347 and \
             result['http2'][0] == 9 and result['http2'][1] == 3242
+    
+def test_capture_counter_2():
+    """
+    This test covers UDP/QUIC/HTTP3 layered counter to the given capture."
+    """
+    counter = CaptureCounter(UDPByteCounter(), QUICByteCounter(), HTTP3ByteCounter())
+
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+
+    capture = pyshark.FileCapture(input_file=tiktok_file, display_filter="udp.stream == 0",
+                                  override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+
+    result = counter.count(capture)
+
+    capture.close()
+
+    assert result['udp'][0] == 80 and result['udp'][1] == 56518 and \
+           result['quic'][0] == 80 and result['quic'][1] == 55878 and \
+           result['http3'][0] == 22 and result['http3'][1] == 42925

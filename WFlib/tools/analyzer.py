@@ -194,9 +194,22 @@ class TCPByteCounter(PacketByteCounter):
 
     def count(self, pkt) -> int:
         cnt = 0
-        if "TCP" in pkt:  # Check if HTTP/2 is present in the decrypted packet
+        if "TCP" in pkt:  
             tcp_layer = pkt['tcp']
             cnt += int(tcp_layer.len) + int(tcp_layer.hdr_len)
+
+        return cnt
+    
+
+class UDPByteCounter(PacketByteCounter):
+    def __init__(self, name='udp'):
+        super().__init__(name)
+
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "UDP" in pkt:  
+            udp_layer = pkt['udp']
+            cnt += int(udp_layer.length)  # udp.length already contains the length of the UDP header
 
         return cnt
     
