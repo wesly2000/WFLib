@@ -359,8 +359,8 @@ class PcapFormatter(Formatter):
         # Iterate over all subdirectories in the base directory
         for subdir in sorted(base_dir_path.iterdir()):
             if subdir.is_dir():  # Check if it's a directory
-                print(f"Processing directory {subdir.name}")
-                host = str(subdir).split('/')[-1] #  Consider using subdir.name
+                # print(f"Processing directory {subdir.name}")
+                host = subdir.name #  Consider using subdir.name
                 for file in subdir.iterdir():
                     if file.is_file() and file.suffix in ['.pcapng', '.pcap']:  # Ensure it's a pcap(ng) file
                         display_filter = SNI_exclude_filter(file, SNIs)
