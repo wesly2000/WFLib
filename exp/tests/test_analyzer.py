@@ -95,7 +95,30 @@ def test_quic_bytes_count():
 
     capture = pyshark.FileCapture(input_file=tiktok_file, display_filter="udp.stream == 0 and quic")
 
-    byte_count, pkt_count = 55878, 80
+    byte_count, pkt_count = 0, 0
+    
     for pkt in capture:
         byte_count += counter.count(pkt)
         pkt_count += 1
+
+    byte_target, packet_target = 55878, 80
+
+    capture.close()
+
+    assert byte_target == byte_count and packet_target == pkt_count
+
+def test_http3_bytes_count():
+    counter = HTTP3ByteCounter()
+
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    capture = pyshark.FileCapture(input_file=tiktok_file, display_filter="udp.stream == 0 and http3",
+                                  override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+
+    byte_count, pkt_count = 0, 0
+    for pkt in capture:
+        byte_count += counter.count(pkt)
+        pkt_count += 1
+
+    byte_target, packet_target = 42925, 22
+
+    assert byte_target == byte_count and packet_target == pkt_count

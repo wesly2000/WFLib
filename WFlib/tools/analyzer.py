@@ -99,11 +99,33 @@ class PacketByteCounter():
         """
         raise NotImplementedError()
     
+
 class HTTP3ByteCounter(PacketByteCounter):
     def __init__(self, name='http3'):
         super().__init__(name)
-        self.header_len = 9  # 9-octet header
-    
+        self.uni_stream_hdr_len = 1  # The length of HTTP/3 unidirectional stream type
+
+    def count(self, pkt) -> int:
+        cnt = 0
+        if "HTTP3" in pkt:
+            h3_layers = filter(lambda layer: layer.layer_name == "http3", pkt.layers)
+            for h3_layer in h3_layers:
+                # if hasattr(h3_layer, "stream_uni_type"):
+                #     for sut in h3_layer.stream_uni_type.all_fields:
+                #         cnt += int(sut.size)  # Uni Stream has one extra stream type byte
+                if hasattr(h3_layer, "stream_uni"):
+                    cnt += int(h3_layer.stream_uni.size)
+                    continue  # It seems that in Wireshark, UNI Stream has contained the length including the frames within
+                # Note that HTTP/3 frame length and type are both variable-length integers.
+                if hasattr(h3_layer, "frame_length"):
+                    # Some HTTP/3 packets may not have frame length/type field.
+                    for fl in h3_layer.frame_length.all_fields:
+                        cnt += int(fl.showname_value) + int(fl.size)
+                    for ft in h3_layer.frame_type.all_fields:
+                        cnt += int(ft.size)
+
+
+        return cnt
 
 class HTTP2ByteCounter(PacketByteCounter):
     def __init__(self, name='http2'):
