@@ -199,3 +199,20 @@ class TCPByteCounter(PacketByteCounter):
             cnt += int(tcp_layer.len) + int(tcp_layer.hdr_len)
 
         return cnt
+    
+
+class CaptureCounter():
+    def __init__(self, *counters: PacketByteCounter):
+        self.counters = counters
+        
+
+    def count(self, cap):
+        result = {counter.name: [0, 0] for counter in self.counters}  # The byte count of each protocol within the capture.
+        for pkt in cap:
+            for counter in self.counters:
+                cnt = counter.count(pkt)
+                if cnt > 0:
+                    result[counter.name][0] += 1  # The number of packets with non-zero byte count.
+                result[counter.name][1] += cnt  
+
+        return result

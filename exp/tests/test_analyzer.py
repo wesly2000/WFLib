@@ -122,3 +122,22 @@ def test_http3_bytes_count():
     byte_target, packet_target = 42925, 22
 
     assert byte_target == byte_count and packet_target == pkt_count
+
+
+def test_capture_counter_1():
+    """
+    This test covers TCP/TLS/HTTP2 layered counter to the given capture.
+    """
+    counter = CaptureCounter(TCPByteCounter(), TLSByteCounter(), HTTP2ByteCounter())
+
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    capture = pyshark.FileCapture(input_file=apple_file, display_filter="tcp.stream == 2",
+                                  override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    
+    result = counter.count(capture)
+
+    capture.close()
+
+    assert  result['tcp'][0] == 32 and result['tcp'][1] == 11408 and \
+            result['tls'][0] == 16 and result['tls'][1] == 10347 and \
+            result['http2'][0] == 9 and result['http2'][1] == 3242
