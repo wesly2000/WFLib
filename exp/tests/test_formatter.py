@@ -5,6 +5,9 @@ import io
 import json
 import tempfile
 import tracemalloc
+import os 
+
+delete_file = True if os.name == "posix" else False # Only delete the file on Unix-like systems.
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
@@ -153,7 +156,7 @@ def test_PcapFormatter_5():
     formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
-    with tempfile.NamedTemporaryFile(mode="r+", delete=True) as temp_file:
+    with tempfile.NamedTemporaryFile(mode="r+", delete=delete_file) as temp_file:
         formatter.dump(temp_file.name)
         loaded_data = json.load(temp_file)
 
@@ -167,6 +170,12 @@ def test_PcapFormatter_5():
         for k, v in loaded_data.items():
             for i in range(len(v)):
                 assert target[k][i] == v[i]
+
+        if not delete_file:
+            filename = temp_file.name
+
+    if not delete_file:
+        os.unlink(filename)
 
 def test_PcapFormatter_6():
     """
@@ -352,7 +361,7 @@ def test_JsonFormatter_1():
     pcap_formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
-    with tempfile.NamedTemporaryFile(mode="r+", delete=True) as temp_file:
+    with tempfile.NamedTemporaryFile(mode="r+", delete=delete_file) as temp_file:
         pcap_formatter.dump(temp_file.name)
         json_formatter = JsonFormatter()
         json_formatter.load(temp_file)
@@ -377,6 +386,12 @@ def test_JsonFormatter_1():
 
         loaded_data.close()
 
+        if not delete_file:
+            filename = temp_file.name
+
+    if not delete_file:
+        os.unlink(filename)
+
 def test_JsonFormatter_2():
     """
     This test covers the statistics with JsonFormatter.
@@ -395,7 +410,7 @@ def test_JsonFormatter_2():
     pcap_formatter.transform("www.zhihu.com", 1, extractor)
 
     # Create an in-memory bytes buffer
-    with tempfile.NamedTemporaryFile(mode="r+", delete=True) as temp_file:
+    with tempfile.NamedTemporaryFile(mode="r+", delete=delete_file) as temp_file:
         pcap_formatter.dump(temp_file.name)
         json_formatter = JsonFormatter()
         json_formatter.load(temp_file)
@@ -411,6 +426,11 @@ def test_JsonFormatter_2():
             for j in range(len(target[i])):
                 assert target[i][j] == directions[i][j]
 
+        if not delete_file:
+            filename = temp_file.name
+
+    if not delete_file:
+        os.unlink(filename)
 
 def test_DistriPcapFormatter_1():
     formatter = DistriPcapFormatter(length=10, keep_packets=False)
