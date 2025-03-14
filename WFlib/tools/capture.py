@@ -491,3 +491,26 @@ def h2data_SNI_intersect(file, SNIs, keylog_file, custom_parameters = None) -> T
 
     return tcp_stream_numbers_h2data & tcp_stream_numbers_tls, udp_stream_numbers_h2data & udp_stream_numbers_tls
 
+def h3data_SNI_intersect(file, SNIs, keylog_file, custom_parameters = None) -> Tuple[set, set]:
+    """
+    Util function: for a given file, extract the TCP/UDP streams satisfying:
+    1. It is the QUIC stream with given SNIs;
+    2. It contains HTTP/3 DATA frames.
+    """
+    # Note that Client Hello is embedded in QUIC, so we need to use tls.handshake.type == 1 to filter.
+    capture_quic = pyshark.FileCapture(input_file=file, 
+                                      display_filter="tls.handshake.type == 1", 
+                                      custom_parameters=custom_parameters)
+    tcp_stream_numbers_quic, udp_stream_numbers_quic = stream_number_extract(capture=capture_quic, check=lambda pkt: contains_SNI(SNIs, pkt))
+    capture_quic.close()
+
+    SNI_filter = stream_extract_filter(tcp_stream_numbers_quic, udp_stream_numbers_quic)
+    
+    capture_h3data = pyshark.FileCapture(input_file=file, 
+                                         display_filter=f"({SNI_filter}) and http3.frame_type == 0",
+                                         custom_parameters=custom_parameters,
+                                         override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    tcp_stream_numbers_h3data, udp_stream_numbers_h2data = stream_number_extract(capture=capture_h3data, check=lambda _: True)
+    capture_h3data.close()
+
+    return tcp_stream_numbers_h3data & tcp_stream_numbers_quic, udp_stream_numbers_h2data & udp_stream_numbers_quic

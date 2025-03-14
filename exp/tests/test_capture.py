@@ -6,6 +6,7 @@ import pyshark
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
 apple_file = "exp/test_dataset/realworld_dataset/decryption/www.apple.com.pcapng"
+tiktok_file = "exp/test_dataset/realworld_dataset/decryption/www.tiktok.com.pcapng"
 
 def test_SNI_extract_1():
     capture = pyshark.FileCapture(input_file=baidu_proxied_file, display_filter="tls.handshake.type == 1")
@@ -141,3 +142,15 @@ def test_h2data_SNI_intersect_1():
     target = {'0'}
 
     assert tcp_stream_numbers == target
+
+def test_h3data_SNI_intersect_1():
+    '''
+    This test covers the intersection of SNI and HTTP/3 DATA streams.'
+    '''
+    SNIs = ["lf16-cdn-tos.tiktokcdn-us.com"]
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    _, udp_stream_numbers = h3data_SNI_intersect(file=tiktok_file, SNIs=SNIs, keylog_file=keylog_file)
+
+    target = {'0'}
+
+    assert udp_stream_numbers == target
