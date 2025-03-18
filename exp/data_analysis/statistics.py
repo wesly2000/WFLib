@@ -23,15 +23,20 @@ def http2_stat(base_dir_path : Path, SNIs, keylog_file):
     for file in sorted(base_dir_path.iterdir()):
         if file.is_file() and file.suffix in ['.pcapng', '.pcap']:
             idx = str(file).split('.')[-2].split('_')[-1]  # Only the index of the filename is needed.
-            tcp_stream, _ = h2data_SNI_intersect(file, SNIs, keylog_file=keylog_file, custom_parameters={"-C": "Customized"})
+            tcp_stream, _ = h2data_SNI_intersect(file, SNIs, keylog_file=keylog_file, 
+                                                 custom_parameters=["-C", "Customized", "-2"])
             tcp_stream_filter = stream_extract_filter(tcp_stream, [])
             if tcp_stream_filter == "":
                 print(f"Warning: {file.name} does not have satisfying TCP stream.")
                 continue
             cap = pyshark.FileCapture(input_file=file, display_filter=tcp_stream_filter,
-                                      custom_parameters={"-C": "Customized"},
+                                      custom_parameters=["-C", "Customized", "-2"],
                                       override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
-            result = counter.count(cap)
+            try:
+                result = counter.count(cap)
+            except AttributeError as e:
+                print(f"{file.name} raises AttributeError: {e}")
+                raise AttributeError()
 
             cap.close()
 
@@ -60,13 +65,14 @@ def http3_stat(base_dir_path : Path, SNIs, keylog_file):
         if file.is_file() and file.suffix in ['.pcapng', '.pcap']:
             idx = str(file).split('.')[-2].split('_')[-1]  # Only the index of the filename is needed.
 
-            _, udp_stream = h3data_SNI_intersect(file, SNIs, keylog_file=keylog_file, custom_parameters={"-C": "Customized"})
+            _, udp_stream = h3data_SNI_intersect(file, SNIs, keylog_file=keylog_file, 
+                                                 custom_parameters=["-C", "Customized", "-2"])
             udp_stream_filter = stream_extract_filter([], udp_stream)
             if udp_stream_filter == "":
                 print(f"Warning: {file.name} does not have satisfying UDP stream.")
                 continue
             cap = pyshark.FileCapture(input_file=file, display_filter=udp_stream_filter,
-                                      custom_parameters={"-C": "Customized"},
+                                      custom_parameters=["-C", "Customized", "-2"],
                                       override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
             
             result = counter.count(cap)
@@ -90,13 +96,14 @@ def http3_stat(base_dir_path : Path, SNIs, keylog_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Flag argument
-    parser.add_argument("-d", "--dir", required=True, type=str, help="The base dir for statistics.")
+    parser.add_argument("-d", "--dir", default="exp/normal_capture", type=str, help="The base dir for statistics.")
+    parser.add_argument("--host", required=True, type=str, help="The host to analyze.")
     parser.add_argument("-s", "--sni", required=True, type=str, help="The domain to analyze.")
     parser.add_argument("-k", "--keylog", type=str, default=None, help="Path to keylog file")
     parser.add_argument("-p", "--protocol", type=str, default="http2", help="Protocol to analyze")
     args = parser.parse_args()
     
-    base_dir = f"exp/normal_capture/{args.dir}"
+    base_dir = f"{args.dir}/{args.host}"
     base_dir_path = Path(base_dir)
     keylog_file = f"{base_dir}/keylog.txt" if args.keylog is None else args.keylog
     SNIs = [args.sni]

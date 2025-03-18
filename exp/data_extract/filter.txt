@@ -30,3 +30,4 @@ mtalk.google.com
 # Misc domains that are not related directly with the target domain.
 weatheroffer.com
 api.infinitynewtab.com
+natfrp-api.globalslb.net
