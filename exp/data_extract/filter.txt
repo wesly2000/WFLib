@@ -5,3 +5,8 @@ dns.twnic.tw
 mobile.events.data.microsoft.com
 natfrp-api.globalslb.net
 default.exp-tas.com
+us-mobile.events.data.microsoft.com
+eu-mobile.events.data.microsoft.com
+au-mobile.events.data.microsoft.com
+jp-mobile.events.data.microsoft.com
+browser.events.data.microsoft.com
