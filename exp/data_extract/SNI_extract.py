@@ -20,7 +20,7 @@ if __name__=="__main__":
     if args.filter is not None:
         # Read in existing filter SNIs
         with open(args.filter, 'r') as f:
-            existing_filter_SNIs = set([SNI for SNI in f])
+            existing_filter_SNIs = set([SNI.strip() for SNI in f])
 
     json_file = "sni.json"
     results = dict()
