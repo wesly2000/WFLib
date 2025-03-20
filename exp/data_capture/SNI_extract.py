@@ -7,11 +7,17 @@ from WFlib.tools.capture import SNI_extract
 from pathlib import Path
 import pyshark
 import json
+import argparse
 
 if __name__=="__main__":
+    parser = argparse.ArgumentParser()
+    # Flag argument
+    parser.add_argument('-d', '--dir', required=True, type=str, help="The base dir to which the capture will output")
+    args = parser.parse_args()
+
     json_file = "sni.json"
     results = dict()
-    base_dir_path = Path("exp/vmess_capture")
+    base_dir_path = Path(args.dir)
     for subdir in sorted(base_dir_path.iterdir()):
         if subdir.is_dir():  # Check if it's a directory
             for file in subdir.iterdir():
