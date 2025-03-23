@@ -11,6 +11,8 @@ delete_file = True if os.name == "posix" else False # Only delete the file on Un
 
 baidu_proxied_file = "exp/test_dataset/realworld_dataset/www.baidu.com_proxied.pcapng"
 google_file = "exp/test_dataset/realworld_dataset/www.google.com.pcapng"
+apple_file = "exp/test_dataset/realworld_dataset/decryption/www.apple.com.pcapng"
+tiktok_file = "exp/test_dataset/realworld_dataset/decryption/www.tiktok.com.pcapng"
 
 def test_PcapFormatter_1():
     """
@@ -285,7 +287,43 @@ def test_PcapFormatter_9():
 
     loaded_data.close()
 
-def test_PcapFormatter_10():
+def test_DirectionExtractor_1():
+    """
+    This test covers reading the first 10 packets from a .pcap file, and extract the direction feature.
+    This test makes feature vector length smaller than the number of packets to test truncation.
+    """
+    extractor = DirectionExtractor(src=["192.168.5.5", "10.4.0.3"])
+
+    formatter = PcapFormatter(length=10)
+    formatter.load(google_file)
+    formatter.transform("www.google.com", 0, extractor)
+
+    formatter.load(apple_file)
+    formatter.transform("www.apple.com", 1, extractor)
+
+    formatter.load(tiktok_file)
+    formatter.transform("www.tiktok.com", 2, extractor)
+
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+
+    formatter.dump(buffer)
+
+    buffer.seek(0)  # Move to the start of the buffer
+    loaded_data = np.load(buffer)
+
+    target = {"hosts" : np.array(["www.google.com", "www.apple.com", "www.tiktok.com"]), 
+              "labels": np.array([0, 1, 2]), 
+              "direction": np.array([[1, 1, 1, -1, -1, -1, -1, 1, 1, -1],
+                                     [1, 1, -1, 1, -1, 1, 1, 1, -1, -1],
+                                     [1, -1, 1, 1, 1, -1, -1, 1, 1, 1],
+                                     ])}
+    for k, v in loaded_data.items():
+        assert np.all(target[k] == v)
+
+    loaded_data.close()
+
+def test_TimeExtractor_1():
     """
     This test covers reading the first 10 packets from a .pcap file, and extract the timestamp feature.
     This test makes feature vector length smaller than the number of packets to test truncation.
@@ -313,7 +351,7 @@ def test_PcapFormatter_10():
 
     loaded_data.close()
 
-def test_PcapFormatter_11():
+def test_TimeExtractor_2():
     """
     This test covers reading the first 10 packets from a .pcap file, and extract the timestamp feature.
     This test makes feature vector length smaller than the number of packets to test truncation.
