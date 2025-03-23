@@ -273,7 +273,7 @@ def batch_capture(base_dir, host_list, iface,
         stdout = open(proxy_log, 'a+') if proxy_log is not None else subprocess.DEVNULL
 
         clash_process = subprocess.Popen(
-            ['/home/lxyu/clash/bin/clash-linux-amd64-debug', '-key-vmess', keylog],
+            ['/home/lxyu/clash/bin/clash-linux-amd64', '-key-trojan', keylog],
             stdout=stdout,
             stderr=subprocess.STDOUT 
         )
@@ -319,6 +319,8 @@ def batch_capture(base_dir, host_list, iface,
                 keylog = f"{base_dir}/{host}/proxy_keylog.txt"
                 monitor_process = multiprocessing.Process(target=launch_proxy, kwargs={"keylog": keylog, "proxy_log": proxy_log})
                 monitor_process.start()
+
+                time.sleep(2)  # maybe waiting for proxy client to launch?
             
             capture(url=url, 
                     timeout=timeout, 

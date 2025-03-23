@@ -157,8 +157,13 @@ class TLSByteCounter(PacketByteCounter):
             for tls_layer in tls_layers:  # Each TLS layer may contain multiple TLS records
                 # The method to iterate through all records within a TLS layer is provided by
                 # https://github.com/KimiNewt/pyshark/issues/419
-                for rl in tls_layer.record_length.all_fields:
-                    cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
+                try:
+                    for rl in tls_layer.record_length.all_fields:
+                        cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
+                except AttributeError:
+                    # PyShark may consider some TCP packets as TLS packets (even TShark consider it TCP) the reason remains
+                    # inspected. Currently, we simply skip such packets.
+                    break
             # tls_layer_lengths = map(lambda layer: int(layer.record_length) + self.type_len + self.ver_len + self.length_len, tls_layers)
             # cnt += sum(tls_layer_lengths)
 
