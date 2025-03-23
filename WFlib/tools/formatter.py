@@ -5,6 +5,7 @@ from pathlib import Path
 import warnings
 import multiprocessing
 from WFlib.tools.capture import SNI_exclude_filter
+from typing import Union, List
 
 class Extractor(object):
     """
@@ -33,12 +34,12 @@ class DirectionExtractor(Extractor):
 
     Attributes
     ----------
-    src : str
-        The source IP address for the extractor to decide ingress or egress.
+    src : List[str]
+        The source IP addresses for the extractor to decide ingress or egress.
     """
-    def __init__(self, src, name="direction"):
+    def __init__(self, src: Union[str, List[str]], name="direction"):
         super().__init__(name=name)
-        self._src = src 
+        self._src = src if isinstance(src, list) else [src]
 
     def extract(self, pkt, target : list, only_summaries=True):
         """
@@ -60,7 +61,7 @@ class DirectionExtractor(Extractor):
                 pass  # Add some warning here
             src = pkt['ip'].src
 
-        target.append(1 if src == self._src else -1) # 1 for egress, -1 for ingress
+        target.append(1 if src in self._src else -1) # 1 for egress, -1 for ingress
 
 class TimeExtractor(Extractor):
     """
@@ -414,7 +415,7 @@ class DistriPcapFormatter(PcapFormatter):
             for extractor in extractors:
                 extractor.extract(pkt, tmp_buf[extractor.name], only_summaries=self._only_summaries)
 
-        cap.close()
+        cap.close_async()
 
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
