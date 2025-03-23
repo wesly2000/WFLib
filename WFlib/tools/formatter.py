@@ -398,7 +398,7 @@ class DistriPcapFormatter(PcapFormatter):
     """
     def __init__(self, length=0, only_summaries=True, keep_packets=True, display_filter=None, num_worker=4):
         super().__init__(length, only_summaries, keep_packets, display_filter)
-        self.num_worker = num_worker
+        self._num_worker = num_worker
 
     def load(self, file):
         raise NotImplementedError()
@@ -483,7 +483,7 @@ class DistriPcapFormatter(PcapFormatter):
         # hosts = [subdir.name for subdir in subdir_list]
         with multiprocessing.Manager() as manager:
             self._raw_buf = manager.list()
-            num_workers = 6  # For testing purpose.
+            num_workers = self._num_worker
 
             with multiprocessing.Pool(num_workers) as pool:
                 # Note that multiprocessing uses pickle to dump the single-process task, and it re-import the task
