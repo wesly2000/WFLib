@@ -6,6 +6,8 @@ import warnings
 import multiprocessing
 from WFlib.tools.capture import SNI_exclude_filter
 from typing import Union, List
+import asyncio
+import os
 
 class Extractor(object):
     """
@@ -405,17 +407,35 @@ class DistriPcapFormatter(PcapFormatter):
         raise NotImplementedError()
     
     def load_and_transform(self, buf, file, *extractors : Extractor):
-        cap = pyshark.FileCapture(  input_file=file, 
-                                    display_filter=self.display_filter,
-                                    only_summaries=self._only_summaries,
-                                    keep_packets=self._keep_packets)
+        # BUG: Running all pytest suite causes DistriPcapFormatter to raise
+        # RuntimeError: Event loop is already running.
+        # This error might raise with the same reason as that in Jupyter Notebook.
+        # Explicitly creating a event loop seems to (partially) solve this issue.
+
+        # This method is mentioned in https://github.com/KimiNewt/pyshark/issues/674,
+        # note that on Linux, SelectorEventLoop should be used, while ProactorEventLoop is used on Windows.
+        # However, on Windows it seems that this error does not occur due to a previous
+        # fix (https://github.com/KimiNewt/pyshark/commit/78b48d65a7b3745456c30e37b1ebac75af984657).
+        # Therefore, we only create explicit event loop when the platform is *nix.
+        if os.name == 'posix':
+            loop = asyncio.SelectorEventLoop()
+            asyncio.set_event_loop(loop)
+        else:
+            loop = None  # None causes no effects
+
+        cap = pyshark.FileCapture(input_file=file, 
+                                  display_filter=self.display_filter,
+                                  eventloop=loop,
+                                  only_summaries=self._only_summaries,
+                                  keep_packets=self._keep_packets)
+        
         
         tmp_buf = {extractor.name : [] for extractor in extractors}
         for pkt in cap:
             for extractor in extractors:
                 extractor.extract(pkt, tmp_buf[extractor.name], only_summaries=self._only_summaries)
 
-        cap.close_async()
+        cap.close()
 
         # Dump features into ndarray, and append to self._buf[name]
         for extractor in extractors:
