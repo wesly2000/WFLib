@@ -76,7 +76,10 @@ class TimeExtractor(Extractor):
     """
     def __init__(self, name="time", src=None):
         super().__init__(name=name)
-        self._src = src
+        if src:
+            self._src = src if isinstance(src, list) else [src]
+        else:
+            self._src = None
 
     def extract(self, pkt, target : list, only_summaries=True):
         """
@@ -106,7 +109,7 @@ class TimeExtractor(Extractor):
                 src = pkt['ip'].src
 
         if self._src:
-            target.append(ts if src == self._src else -1 * ts)
+            target.append(ts if src in self._src else -1 * ts)
         else:
             target.append(ts)
 
