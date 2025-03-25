@@ -420,20 +420,15 @@ class DistriPcapFormatter(PcapFormatter):
         # However, on Windows it seems that this error does not occur due to a previous
         # fix (https://github.com/KimiNewt/pyshark/commit/78b48d65a7b3745456c30e37b1ebac75af984657).
         # Therefore, we only create explicit event loop when the platform is *nix.
-        if os.name == 'posix':
-            loop = asyncio.SelectorEventLoop()
-            asyncio.set_event_loop(loop)
-        else:
-            loop = None  # None causes no effects
+        # UPDATE: The issue remains, no idea about this:(
+
+        tmp_buf = {extractor.name : [] for extractor in extractors}
 
         cap = pyshark.FileCapture(input_file=file, 
                                   display_filter=self.display_filter,
-                                  eventloop=loop,
                                   only_summaries=self._only_summaries,
                                   keep_packets=self._keep_packets)
         
-        
-        tmp_buf = {extractor.name : [] for extractor in extractors}
         for pkt in cap:
             for extractor in extractors:
                 extractor.extract(pkt, tmp_buf[extractor.name], only_summaries=self._only_summaries)
