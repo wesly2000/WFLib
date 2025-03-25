@@ -30,6 +30,7 @@ import os
 import time
 import logging
 import shutil
+import asyncio
 
 logger = logging.getLogger('selenium')
 logger.setLevel(logging.WARN)
@@ -386,8 +387,12 @@ def stream_number_extract(capture : Capture, check) -> Tuple[set, set]:
     ------
     set : The set contains the stream numbers each of which contains at least 1 packet satisfying check.
     """
-    tcp_stream_numbers = set(pkt['TCP'].stream for pkt in capture if 'TCP' in pkt and check(pkt))
-    udp_stream_numbers = set(pkt['UDP'].stream for pkt in capture if 'UDP' in pkt and check(pkt))
+    tcp_stream_numbers, udp_stream_numbers = set(), set()
+    for pkt in capture:
+        if 'TCP' in pkt and check(pkt):
+            tcp_stream_numbers.add(pkt['TCP'].stream)
+        elif 'UDP' in pkt and check(pkt):
+            udp_stream_numbers.add(pkt['UDP'].stream)
     return tcp_stream_numbers, udp_stream_numbers
 
 def stream_extract_filter(tcp_stream_numbers : Union[list, set], udp_stream_numbers : Union[list, set]):
