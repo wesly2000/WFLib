@@ -177,3 +177,29 @@ def test_capture_counter_2():
     assert result['udp'][0] == 80 and result['udp'][1] == 56518 and \
            result['quic'][0] == 80 and result['quic'][1] == 55878 and \
            result['http3'][0] == 22 and result['http3'][1] == 42925
+    
+
+def test_match_segment_number_01():
+    """
+    This test covers matching needed fields.
+    """
+    msg = "#12(2345), #23(333)"
+
+    target = [(12, 2345), (23, 333)]
+    result = match_segment_number(msg)
+    for i in range(len(target)):
+        assert target[i] == result[i]
+
+
+# def test_get_reassemble_info():
+#     """
+#     This test covers getting reassemble info from the given capture.
+#     """
+#     tcp_filter = "tcp.stream == 0"
+#     keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+#     cap = pyshark.FileCapture(input_file=apple_file, display_filter=tcp_filter,
+#                                 custom_parameters=["-C", "Customized", "-2"],
+#                                 override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    
+#     reassemble_info = get_reassemble_info(cap)
+#     cap.close()

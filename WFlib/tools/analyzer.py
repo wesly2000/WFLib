@@ -260,3 +260,123 @@ class CaptureCounter():
                 result[counter.name][1] += cnt  
 
         return result
+    
+
+class Cell():
+    def __init__(self, proto, abs_frame_idx):
+        self.proto = proto
+        self.abs_frame_idx = abs_frame_idx 
+        self.rel_frame_idx = None
+        self.abs_reassemble_info = []
+        self.rel_reassemble_info = []
+
+
+class CellExtractor(object):
+    def __init__(self):
+        pass 
+
+    def extract(self, pkt, protocol) -> List[Cell]:
+        """
+        Extract reassembly information from the given packet with the given protocol.
+        """
+        if protocol not in pkt:
+            return []
+        
+        # Despite that different protocol name its PDU in different names, e.g., packet for QUIC
+        # Layer for TLS, Frame for HTTP2. We name the PDU as 'layer' for all protocols.
+        proto_layers = filter(lambda layer: layer.layer_name == protocol, pkt.layers)
+        raise NotImplementedError()
+
+    
+def match_segment_number(s: str): 
+    """
+    Extract numbers after symbol '#'.  
+    """
+    pattern = r'#(\d+)\((\d+)\)'
+    results = re.findall(pattern, s)
+    res = [(int(idx), int(size)) for idx, size in results]
+    return res
+
+
+def get_reassemble_info(cap: pyshark.FileCapture, protocol_stack: List[str] = ['TCP', 'TLS',]): 
+    """
+    Extract the reassemble information for each packet given the protocol stack. In PyShark, the reassembly
+    information is wrapped in the DATA layer, which is a fake-field-wrapper. When there are multiple upper
+    layers, multiple DATA layer might be used. For example, given a packet TCP/TLS/HTTP2, there are 3 possible
+    cases, we list the corresponding layers for each of them:
+
+    + 1. The TLS layer is reassembled, but HTTP2 layer is not (TCP/DATA/TLS/HTTP2/DATA);
+    + 2. The TLS layer is not reassembled, but HTTP2 layer is (TCP/TLS/DATA/HTTP2/DATA);
+    + 3. Both TLS and HTTP2 layers are reassembled (TCP/DATA/TLS/DATA/HTTP2/DATA),
+
+    where the last DATA layer is for Lua-related information that should be ignored.
+
+    However, for protocols above the transport layer, there might be multiple layers for the same protocol, e.g.,
+    TCP/DATA/TLS/TLS/TLS/DATA/HTTP2/HTTP2. 
+                  ^   ^         ^     ^
+
+    One could deduce that for a given protocol, reassembly would only happen at the its first layer. Therefore, we
+    need to separately handle the remaining layers (marked with ^).
+
+
+    TODO: Add support to UDP stack.
+
+    Parameters 
+    ----------
+    cap: pyshark.FileCapture
+        The capture file.
+    protocol_stack: List[str]
+        The ordered list of protocols, the first one is the lower bound of the stack, the last one the upper bound.
+        For example, for a protocol stack TCP/VMess/TLS/HTTP2, if we want to extract all the layer reassembly, one
+        should set the protocol_stack to ['TCP', 'VMess', 'TLS', 'HTTP2'].
+
+    Returns 
+    ------- 
+    res_dict: dict, {K: [v1, ...], ...} 
+        K is the packet index in the same form of Wireshark, namely, starts from 1. 
+        [v1, ...] denotes the reassembled indices, whose values will be K in turn and have the same reassembled list. 
+        For example, {1: [1, 2], 2: [1, 2]}. 
+    """
+    # res_dict = {} # {index: [reassemble packets]}
+    # for i in tqdm(range(packet_count(cap)), "get reassemble info"): 
+    #     if cap[i].transport_layer == 'TCP': # ignore the UDP based protocols 
+    #         frame_num = int(cap[i].frame_info.get_field('number')) # get the number of frame
+    #         res_dict[frame_num] = [] # init i-th position as empty 
+    #         segment_index = [] 
+    #         # print(f'${i}$: ${pcap[i].layers}')
+    #         for layer in cap[i].layers: 
+    #             if layer.layer_name == 'DATA': # fake-field-wrapper is renamed to data in pyshark
+    #                 for field in layer.field_names: 
+    #                     if field == 'tcp_segments': # reassemble will appearance in the last packet
+    #                         field_obj = layer.get_field(field) 
+    #                         content = field_obj.main_field.get_default_value() 
+    #                         segment_index.extend(match_segment_number(content)) 
+    #         for index in segment_index: # cover related values with its reassemble info
+    #             res_dict[index] = segment_index 
+    
+    # return res_dict
+    res_dict = {protocol: [] for protocol in protocol_stack} # {index: [reassemble packets]}
+    cell_extractor = CellExtractor()
+    for pkt in cap: 
+        # for protocol in protocol_stack: 
+        #     if protocol in pkt:
+        #         res_dict[protocol].extend(cell_extractor.extract(pkt, protocol))
+        # if protocol in pkt:
+        #     frame_num = int(pkt.frame_info.get_field('number')) # get the number of frame
+        #     res_dict[frame_num] = [] # init i-th position as empty 
+        #     segment_index = [] 
+        #     # print(f'${i}$: ${pcap[i].layers}')
+        #     for layer in pkt.layers: 
+        #         if layer.layer_name == 'DATA': # fake-field-wrapper is renamed to data in pyshark
+        #             for field in layer.field_names: 
+        #                 if field == 'tcp_segments': # reassemble will appearance in the last packet
+        #                     field_obj = layer.get_field(field) 
+        #                     content = field_obj.main_field.get_default_value() 
+        #                     segment_index.extend(match_segment_number(content)) 
+        #     for index in segment_index: # cover related values with its reassemble info
+        #         res_dict[index] = segment_index 
+        frame_num = int(pkt.frame_info.get_field('number'))
+        if frame_num == 58:
+            pass
+    
+    return res_dict
