@@ -49,7 +49,7 @@ def test_http2_bytes_count():
     
     byte_count, pkt_count = 0, 0
     for pkt in capture:
-        byte_count += counter.count(pkt)
+        byte_count += counter.packet_count(pkt)
         pkt_count += 1
 
     byte_target, packet_target = 3242, 9
@@ -65,7 +65,7 @@ def test_tcp_bytes_count():
     
     byte_count, pkt_count = 0, 0
     for pkt in capture:
-        byte_count += counter.count(pkt)
+        byte_count += counter.packet_count(pkt)
         pkt_count += 1
 
     byte_target, packet_target = 11408, 32
@@ -81,7 +81,7 @@ def test_tls_bytes_count():
     
     byte_count, pkt_count = 0, 0
     for pkt in capture:
-        byte_count += counter.count(pkt)
+        byte_count += counter.packet_count(pkt)
         pkt_count += 1
 
     byte_target, packet_target = 10347, 16
@@ -98,7 +98,7 @@ def test_udp_bytes_count():
     byte_count, pkt_count = 0, 0
 
     for pkt in capture:
-        byte_count += counter.count(pkt)
+        byte_count += counter.packet_count(pkt)
         pkt_count += 1
 
     byte_target, packet_target = 56518, 80
@@ -115,7 +115,7 @@ def test_quic_bytes_count():
     byte_count, pkt_count = 0, 0
     
     for pkt in capture:
-        byte_count += counter.count(pkt)
+        byte_count += counter.packet_count(pkt)
         pkt_count += 1
 
     byte_target, packet_target = 55878, 80
@@ -133,7 +133,7 @@ def test_http3_bytes_count():
 
     byte_count, pkt_count = 0, 0
     for pkt in capture:
-        byte_count += counter.count(pkt)
+        byte_count += counter.packet_count(pkt)
         pkt_count += 1
 
     byte_target, packet_target = 42925, 22

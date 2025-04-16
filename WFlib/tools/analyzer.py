@@ -4,6 +4,8 @@ import torch
 import numpy as np
 import pyshark 
 from pathlib import Path
+import re
+from typing import List
 
 def feature_attr(model, attr_method, X, y, num_classes):
     """
@@ -81,7 +83,7 @@ def file_count(base_dir : Path):
 # TODO: Consider replace all the non-HTTP counter's count method to only count the underlying
 # TCP/UDP payload length.
 
-class PacketByteCounter():
+class ByteCounter():
     """
     Abstraction of protocol specific byte counter.
 
@@ -93,87 +95,111 @@ class PacketByteCounter():
     def __init__(self, name):
         self.name = name
 
-    def count(self, pkt) -> int:
+    def layer_count(self, layer, extra_data = None) -> int:
+        """
+        Count the number of layers of the given protocol within the given packet.
+        """
+        raise NotImplementedError()
+
+    def packet_count(self, pkt) -> int:
         """
         Count the byte number of proto layer within the given packet.
         """
         raise NotImplementedError()
     
 
-class HTTP3ByteCounter(PacketByteCounter):
+class HTTP3ByteCounter(ByteCounter):
     def __init__(self, name='http3'):
         super().__init__(name)
         self.uni_stream_hdr_len = 1  # The length of HTTP/3 unidirectional stream type
 
-    def count(self, pkt) -> int:
+    def layer_count(self, layer, extra_data = None) -> int:
         cnt = 0
-        if "HTTP3" in pkt:
-            h3_layers = filter(lambda layer: layer.layer_name == "http3", pkt.layers)
-            for h3_layer in h3_layers:
-                # if hasattr(h3_layer, "stream_uni_type"):
-                #     for sut in h3_layer.stream_uni_type.all_fields:
-                #         cnt += int(sut.size)  # Uni Stream has one extra stream type byte
-                if hasattr(h3_layer, "stream_uni"):
-                    cnt += int(h3_layer.stream_uni.size)
-                    continue  # It seems that in Wireshark, UNI Stream has contained the length including the frames within
-                # Note that HTTP/3 frame length and type are both variable-length integers.
-                if hasattr(h3_layer, "frame_length"):
-                    # Some HTTP/3 packets may not have frame length/type field.
-                    for fl in h3_layer.frame_length.all_fields:
-                        cnt += int(fl.showname_value) + int(fl.size)
-                    for ft in h3_layer.frame_type.all_fields:
-                        cnt += int(ft.size)
-
+        # if hasattr(h3_layer, "stream_uni_type"):
+        #     for sut in h3_layer.stream_uni_type.all_fields:
+        #         cnt += int(sut.size)  # Uni Stream has one extra stream type byte
+        if hasattr(layer, "stream_uni"):
+            cnt += int(layer.stream_uni.size)
+            return cnt  # It seems that in Wireshark, UNI Stream has contained the length including the frames within
+        # Note that HTTP/3 frame length and type are both variable-length integers.
+        if hasattr(layer, "frame_length"):
+            # Some HTTP/3 packets may not have frame length/type field.
+            for fl in layer.frame_length.all_fields:
+                cnt += int(fl.showname_value) + int(fl.size)
+            for ft in layer.frame_type.all_fields:
+                cnt += int(ft.size)
 
         return cnt
 
-class HTTP2ByteCounter(PacketByteCounter):
+    def packet_count(self, pkt) -> int:
+        cnt = 0
+        if "HTTP3" in pkt:
+            h3_layers = filter(lambda layer: layer.layer_name == "http3", pkt.layers)
+            h3_layer_lengths = map(self.layer_count, h3_layers)
+            cnt += sum(h3_layer_lengths)
+
+        return cnt
+
+class HTTP2ByteCounter(ByteCounter):
     def __init__(self, name='http2'):
         super().__init__(name)
         self.preface_len = 24  # HTTP/2 Connection Preface
         self.header_len = 9  # 9-octet header
+
+    def layer_count(self, layer, extra_data = None) -> int:
+        return int(layer.length) + self.header_len if hasattr(layer, "length") else self.preface_len
     
-    def count(self, pkt) -> int:
+    def packet_count(self, pkt) -> int:
         cnt = 0
         if "HTTP2" in pkt:  # Check if HTTP/2 is present in the decrypted packet
             h2_layers = filter(lambda layer: layer.layer_name == "http2", pkt.layers)
-            h2_layer_lengths = map(lambda layer: int(layer.length) + self.header_len if hasattr(layer, "length") else self.preface_len, h2_layers)
+            h2_layer_lengths = map(self.layer_count, h2_layers)
             cnt += sum(h2_layer_lengths)
 
         return cnt
     
 
-class TLSByteCounter(PacketByteCounter):
+class TLSByteCounter(ByteCounter):
     def __init__(self, name='tls'):
         super().__init__(name)
         self.type_len = 1  # TLS record type
         self.ver_len = 2  # TLS version
         self.length_len = 1  # TLS record length
 
-    def count(self, pkt) -> int:
+    def layer_count(self, layer, extra_data = None) -> int:
+        cnt = 0
+        # The method to iterate through all records within a TLS layer is provided by
+        # https://github.com/KimiNewt/pyshark/issues/419
+        for rl in layer.record_length.all_fields:  # Each TLS layer may contain multiple TLS records
+            cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
+
+        return cnt
+
+    def packet_count(self, pkt) -> int:
         cnt = 0
         if "TLS" in pkt:  
             tls_layers = filter(lambda layer: layer.layer_name == "tls", pkt.layers)  # One packet may contain multiple TLS layers
-            for tls_layer in tls_layers:  # Each TLS layer may contain multiple TLS records
-                # The method to iterate through all records within a TLS layer is provided by
-                # https://github.com/KimiNewt/pyshark/issues/419
-                for rl in tls_layer.record_length.all_fields:
-                    cnt += int(rl.showname_value) + self.type_len + self.ver_len + self.length_len
-            # tls_layer_lengths = map(lambda layer: int(layer.record_length) + self.type_len + self.ver_len + self.length_len, tls_layers)
-            # cnt += sum(tls_layer_lengths)
+            tls_layer_lengths = map(self.layer_count, tls_layers)
+            cnt += sum(tls_layer_lengths)
 
         return cnt
     
 
-class QUICByteCounter(PacketByteCounter):
+class QUICByteCounter(ByteCounter):
     def __init__(self, name='quic'):
         super().__init__(name)
         self.udp_hdr_len = 8  # UDP header length
 
-    def count(self, pkt) -> int:
+    def layer_count(self, layer, extra_data = None) -> int:
+        """
+        TODO: QUIC leverages UDP to do packet counting, try to isolate this issue.
+        """
+        raise NotImplementedError("QUICByteCounter.layer_count is not implemented, since the isolation of UDP is not done yet.")
+
+    def packet_count(self, pkt) -> int:
         cnt = 0
         if "QUIC" in pkt:  
-            quic_packets = filter(lambda layer: layer.layer_name == "quic", pkt.layers)  # One packet may contain multiple QUIC packets (QUIC uses packet instead of layer)
+            quic_packets = filter(lambda layer: layer.layer_name == "quic", pkt.layers)  # One packet may contain multiple QUIC packets (QUIC uses packet instead of layer as its PDU)
             for quic_packet in quic_packets:  
                 # If the packet has coalesced padding data, the length of the packet is equal to the
                 # UDP payload data length. See the discussions below:
@@ -188,34 +214,39 @@ class QUICByteCounter(PacketByteCounter):
 
         return cnt
 
-class TCPByteCounter(PacketByteCounter):
+class TCPByteCounter(ByteCounter):
     def __init__(self, name='tcp'):
         super().__init__(name)
 
-    def count(self, pkt) -> int:
+    def layer_count(self, layer, extra_data = None) -> int:
+        return int(layer.len) + int(layer.hdr_len)
+    def packet_count(self, pkt) -> int:
         cnt = 0
         if "TCP" in pkt:  
             tcp_layer = pkt['tcp']
-            cnt += int(tcp_layer.len) + int(tcp_layer.hdr_len)
+            cnt += self.layer_count(tcp_layer)
 
         return cnt
     
 
-class UDPByteCounter(PacketByteCounter):
+class UDPByteCounter(ByteCounter):
     def __init__(self, name='udp'):
         super().__init__(name)
 
-    def count(self, pkt) -> int:
+    def layer_count(self, layer, extra_data = None) -> int:
+        return int(layer.length)  # udp.length already contains the length of the UDP header
+ 
+    def packet_count(self, pkt) -> int:
         cnt = 0
         if "UDP" in pkt:  
             udp_layer = pkt['udp']
-            cnt += int(udp_layer.length)  # udp.length already contains the length of the UDP header
+            cnt += self.layer_count(udp_layer)
 
         return cnt
     
 
 class CaptureCounter():
-    def __init__(self, *counters: PacketByteCounter):
+    def __init__(self, *counters: ByteCounter):
         self.counters = counters
         
 
@@ -223,7 +254,7 @@ class CaptureCounter():
         result = {counter.name: [0, 0] for counter in self.counters}  # The byte count of each protocol within the capture.
         for pkt in cap:
             for counter in self.counters:
-                cnt = counter.count(pkt)
+                cnt = counter.packet_count(pkt)
                 if cnt > 0:
                     result[counter.name][0] += 1  # The number of packets with non-zero byte count.
                 result[counter.name][1] += cnt  
