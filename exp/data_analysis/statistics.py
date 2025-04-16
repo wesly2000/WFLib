@@ -33,7 +33,7 @@ def tls_stat(base_dir_path : Path, SNIs, keylog_file):
                                       custom_parameters=["-C", "Customized", "-2"])
             for pkt in cap:
                 try:
-                    byte_count += tls_counter.count(pkt)
+                    byte_count += tls_counter.packet_count(pkt)
                     pkt_count += 1
                 except Exception as e:
                     print(f"{file.name} raises Exception: {e}")
@@ -65,7 +65,7 @@ def tcp_stat(base_dir_path : Path, SNIs, keylog_file):
             cap = pyshark.FileCapture(input_file=file, display_filter=display_filter,
                                       custom_parameters={"-C": "Customized"})
             for pkt in cap:
-                byte_count += tcp_counter.count(pkt)
+                byte_count += tcp_counter.packet_count(pkt)
                 pkt_count += 1
 
             cap.close()
