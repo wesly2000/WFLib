@@ -157,7 +157,8 @@ def http3_stat(base_dir_path : Path, SNIs, keylog_file):
         if file.is_file() and file.suffix in ['.pcapng', '.pcap']:
             idx = str(file).split('.')[-2].split('_')[-1]  # Only the index of the filename is needed.
 
-            _, udp_stream = h3data_SNI_intersect(file, SNIs, keylog_file=keylog_file, custom_parameters={"-C": "Customized"})
+            _, udp_stream = h3data_SNI_intersect(file, SNIs, keylog_file=keylog_file, 
+                                                 custom_parameters=["-C", "Customized", "-2"])
             udp_stream_filter = stream_extract_filter([], udp_stream)
             if udp_stream_filter == "":
                 print(f"Warning: {file.name} does not have satisfying UDP stream.")
