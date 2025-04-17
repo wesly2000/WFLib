@@ -286,8 +286,47 @@ class CellExtractor(object):
         # Layer for TLS, Frame for HTTP2. We name the PDU as 'layer' for all protocols.
         proto_layers = filter(lambda layer: layer.layer_name == protocol, pkt.layers)
         raise NotImplementedError()
-
     
+
+def layer_extractor(pkt, upper_protocol, lower_protocol):
+    """
+    Extract all layers of the given protocol, if the layer is built upon a DATA layer, 
+    prepend the DATA layer to the layer list. Caller is responsible to ensure that
+    the order of upper_protocol and lower_protocol is correct. Moreover, caller is
+    responsible to ensure the continuity of upper_protocol and lower_protocol.
+
+    For example, if the packet stack is TCP/TLS/HTTP2, the following params:
+    {upper_protocol: 'http2', lower_protocol: 'tcp'},
+    {upper_protocol: 'tls', lower_protocol: 'http2'},
+
+    will lead to unexpected behavior. Callee does not handle the above cases since in 
+    practice they are valid, e.g., HTTP tunnel may build TLS upon HTTP.
+
+    If the packet does not contain either upper_protocol or lower_protocol, return an empty list.
+    """
+    upper_protocol = upper_protocol.lower()
+    lower_protocol = lower_protocol.lower()
+
+    supported_protocols = ['tcp', 'tls', 'http2', 'vmess']
+    if upper_protocol not in supported_protocols or lower_protocol not in supported_protocols:
+        raise ValueError(f"Unsupported protocol: only the following protocols are supported: {supported_protocols}")
+    # Assure the packet protocol stack contains both upper and lower protocols.
+    if upper_protocol not in pkt or lower_protocol not in pkt:
+        return []  
+    
+    layers = []
+    data_layer_marker = {'tcp': 'tcp_segments', 'tls': 'tls_segments'}
+
+    for layer in pkt.layers:
+        if layer.layer_name == 'DATA':
+            if data_layer_marker[lower_protocol] in layer.field_names:
+                layers.append(layer)
+        elif layer.layer_name == upper_protocol:
+            layers.append(layer)
+
+    return layers
+
+
 def match_segment_number(s: str): 
     """
     Extract numbers after symbol '#'.  

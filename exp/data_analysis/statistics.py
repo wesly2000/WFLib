@@ -116,7 +116,8 @@ def http2_stat(base_dir_path : Path, SNIs, keylog_file):
     for file in sorted(base_dir_path.iterdir()):
         if file.is_file() and file.suffix in ['.pcapng', '.pcap']:
             idx = str(file).split('.')[-2].split('_')[-1]  # Only the index of the filename is needed.
-            tcp_stream, _ = h2data_SNI_intersect(file, SNIs, keylog_file=keylog_file, custom_parameters={"-C": "Customized"})
+            tcp_stream, _ = h2data_SNI_intersect(file, SNIs, keylog_file=keylog_file, 
+                                                 custom_parameters=["-C", "Customized", "-2"])
             tcp_stream_filter = stream_extract_filter(tcp_stream, [])
             if tcp_stream_filter == "":
                 print(f"Warning: {file.name} does not have satisfying TCP stream.")

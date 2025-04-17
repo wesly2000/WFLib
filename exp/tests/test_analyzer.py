@@ -178,6 +178,86 @@ def test_capture_counter_2():
            result['quic'][0] == 80 and result['quic'][1] == 55878 and \
            result['http3'][0] == 22 and result['http3'][1] == 42925
     
+def test_layer_extractor_01():
+    """
+    This test covers extracting layers from the given capture for TLS.
+    """
+    tcp_filter = "tcp.stream == 0"
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    cap = pyshark.FileCapture(input_file=apple_file, display_filter=tcp_filter, 
+                                custom_parameters=["-C", "Customized", "-2"],
+                                override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    for pkt in cap:
+        if pkt.number == "34":  # This packet contains only a single TLS layer.
+            layers = layer_extractor(pkt, upper_protocol="tls", lower_protocol='TCP')
+            assert len(layers) == 1 and layers[0].layer_name == "tls"
+        elif pkt.number == "66":  # This packet contains a DATA layer and a single TLS layer.
+            layers = layer_extractor(pkt, upper_protocol="tls", lower_protocol='TCP')
+            assert len(layers) == 2 and \
+                    layers[0].layer_name == "DATA" and \
+                    layers[1].layer_name == "tls" and \
+                    "tcp_segments" in layers[0].field_names  # Assert we are extracting the correct DATA layer.
+        elif pkt.number == "104":  # This packet contains a DATA layer and a single TLS layer.
+            layers = layer_extractor(pkt, upper_protocol="tls", lower_protocol='TCP')
+            assert len(layers) == 3 and \
+                    layers[0].layer_name == "DATA" and \
+                    layers[1].layer_name == "tls" and \
+                    layers[2].layer_name == "tls" and \
+                    "tcp_segments" in layers[0].field_names  # Assert we are extracting the correct DATA layer.
+        elif pkt.number == "203":  # This packet contains a DATA layer and a single TLS layer.
+            layers = layer_extractor(pkt, upper_protocol="tls", lower_protocol='TCP')
+            assert len(layers) == 0
+
+    cap.close()
+
+def test_match_segment_number_02():
+    """
+    This test covers extracting layers from the given capture for HTTP2.
+    """
+    tcp_filter = "tcp.stream == 0"
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    cap = pyshark.FileCapture(input_file=apple_file, display_filter=tcp_filter, 
+                                custom_parameters=["-C", "Customized", "-2"],
+                                override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    for pkt in cap:
+        if pkt.number == "67":  # This packet contains a DATA layer and a single HTTP2 layer.
+            layers = layer_extractor(pkt, upper_protocol="http2", lower_protocol='tls')
+            assert len(layers) == 2 and \
+                    layers[0].layer_name == "DATA" and \
+                    layers[1].layer_name == "http2" and \
+                    "tls_segments" in layers[0].field_names  # Assert we are extracting the correct DATA layer.
+        if pkt.number == "104":  # This packet contains a DATA layer and multiple HTTP2 layers.
+            layers = layer_extractor(pkt, upper_protocol="http2", lower_protocol='tls')
+            assert len(layers) == 3 and \
+                    layers[0].layer_name == "http2" and \
+                    layers[1].layer_name == "DATA" and \
+                    layers[2].layer_name == "http2" and \
+                    "tls_segments" in layers[1].field_names  # Assert we are extracting the correct DATA layer.
+        if pkt.number == "170":  # This packet contains a DATA layer and multiple HTTP2 layers.
+            layers = layer_extractor(pkt, upper_protocol="http2", lower_protocol='tls')
+            assert len(layers) == 5 and \
+                    layers[0].layer_name == "DATA" and \
+                    layers[1].layer_name == "DATA" and \
+                    layers[2].layer_name == "http2" and \
+                    layers[3].layer_name == "http2" and \
+                    layers[4].layer_name == "http2" and \
+                    "tls_segments" in layers[0].field_names and \
+                    "tls_segments" in layers[1].field_names
+        if pkt.number == "221":  # This packet contains a DATA layer and multiple HTTP2 layers.
+            layers = layer_extractor(pkt, upper_protocol="http2", lower_protocol='tls')
+            assert len(layers) == 7 and \
+                    layers[0].layer_name == "DATA" and \
+                    layers[1].layer_name == "DATA" and \
+                    layers[2].layer_name == "DATA" and \
+                    layers[3].layer_name == "http2" and \
+                    layers[4].layer_name == "http2" and \
+                    layers[5].layer_name == "http2" and \
+                    layers[6].layer_name == "http2" and \
+                    "tls_segments" in layers[0].field_names and \
+                    "tls_segments" in layers[1].field_names and \
+                    "tls_segments" in layers[2].field_names
+            
+    cap.close()
 
 def test_match_segment_number_01():
     """
