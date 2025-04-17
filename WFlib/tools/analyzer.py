@@ -5,7 +5,7 @@ import numpy as np
 import pyshark 
 from pathlib import Path
 import re
-from typing import List
+from typing import List, Callable
 
 def feature_attr(model, attr_method, X, y, num_classes):
     """

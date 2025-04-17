@@ -210,7 +210,7 @@ def test_layer_extractor_01():
 
     cap.close()
 
-def test_match_segment_number_02():
+def test_layer_extractor_02():
     """
     This test covers extracting layers from the given capture for HTTP2.
     """
