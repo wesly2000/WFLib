@@ -259,6 +259,33 @@ def test_match_segment_number_02():
             
     cap.close()
 
+def test_seq_filter_01():
+    """
+    This test covers seq_filter with different type of labels.
+    """
+    seq = [0, 1, 0, 0, 0, 1, 1, 1, 1]
+    target = [0, 0, 0, 0, 1]
+    result = seq_filter(seq, label_func=lambda x: x)
+
+    assert target == result
+
+    seq = ['x', 'y', 'x', 'x', 'x', 'y', 'y', 'y', 'y']
+    target = ['x', 'x', 'x', 'x', 'y']
+    result = seq_filter(seq, label_func=lambda x: 0 if x == 'x' else 1)
+
+    seq = ['y', 'y', 'y', 'y']
+    target = ['y', 'y', 'y', 'y']
+    result = seq_filter(seq, label_func=lambda x: 0 if x == 'x' else 1)
+
+    seq = []
+    target = []
+    result = seq_filter(seq, label_func=lambda x: 0 if x == 'x' else 1)
+
+    seq = ['x', 'y', 'x', 'y', 'x', 'y', 'x', 'x', 'y', 'y']
+    target = ['x', 'x', 'x', 'x', 'x']
+    result = seq_filter(seq, label_func=lambda x: 0 if x == 'x' else 1)
+    assert target == result
+
 def test_match_segment_number_01():
     """
     This test covers matching needed fields.

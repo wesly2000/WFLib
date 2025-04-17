@@ -327,6 +327,65 @@ def layer_extractor(pkt, upper_protocol, lower_protocol):
     return layers
 
 
+def seq_filter(seq: List[object], label_func: Callable[[object], str]):
+    """
+    A generic algorithm to solve the following abstract problem:
+
+    There is a sequence of label x, y with the rules that:
+
+    1. When there is an x, there must be at least one y after it;
+    2. x could not be the last element.
+
+    The filter will return a new sequence that eliminates all the first y that right follows the x.
+    For example, given a sequence [x_1, y_1, x_2, x_3, x_4, y_2, y_3, y_4, y_5], since y_1 is the first y that
+    right follows x_1, y_2 is the first y that right follows x_2, y_3 is the first y that right follows x_3, and so on,
+    the filter will return a new sequence [x_1, x_2, x_3, x_4, y_5], since y_5 does not follow any x.
+
+    In practice, using int 0, 1 to represent 'x', 'y' respectively may be more intuitive. Therefore, we adopt 0, 1 
+    as the abstract labels.
+
+    Parameters
+    ----------
+    seq: List[object]
+        The sequence to be filtered, it could contain any object.
+
+    label_func: Callable[[object], str]:
+        The function to map each object to a label, note that the caller is responsible to assign the correct label
+        to each object.
+    """
+    def generic_seq_filter(generic_seq: list):
+        assert generic_seq[-1] != 0, "The last element of the sequence should not be 0."
+        
+        num_of_x = sum([int(elem == 0) for elem in generic_seq])
+        num_of_y = sum([int(elem == 1) for elem in generic_seq])
+        assert num_of_x <= num_of_y, "The number of x MUST NOT be more than that of y."
+
+        new_seq_idx = []
+        first_y = 0
+        for i in range(len(generic_seq)):
+            if generic_seq[i] == 0:
+                if first_y <= i:  # Fast-forward
+                    first_y = i + 1
+                new_seq_idx.append(i)
+                # Search for the first y that right follows x.
+                for j in range(first_y, len(generic_seq)):
+                    if generic_seq[j] == 1:
+                        first_y = j + 1
+                        break
+                
+                
+        for i in range(first_y, len(generic_seq)):
+            new_seq_idx.append(i)
+
+        return new_seq_idx
+    if len(seq) == 0:
+        return []
+
+    generic_seq = [label_func(elem) for elem in seq]
+    new_seq_idx = generic_seq_filter(generic_seq)
+    new_seq = [seq[i] for i in new_seq_idx]
+    return new_seq
+
 def match_segment_number(s: str): 
     """
     Extract numbers after symbol '#'.  
