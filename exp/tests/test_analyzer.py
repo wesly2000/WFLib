@@ -286,6 +286,45 @@ def test_seq_filter_01():
     result = seq_filter(seq, label_func=lambda x: 0 if x == 'x' else 1)
     assert target == result
 
+    seq = ['y', 'x', 'y']
+    target = ['y', 'x']
+    result = seq_filter(seq, label_func=lambda x: 0 if x == 'x' else 1)
+    assert target == result
+
+def test_seq_filter_02():
+    """
+    This test covers seq_filter with more complex labeling functions.
+    """
+    tcp_filter = "tcp.stream == 0"
+    keylog_file = "exp/test_dataset/realworld_dataset/decryption/keylog.txt"
+    cap = pyshark.FileCapture(input_file=apple_file, display_filter=tcp_filter, 
+                                custom_parameters=["-C", "Customized", "-2"],
+                                override_prefs={'tls.keylog_file': os.path.abspath(keylog_file)})
+    for pkt in cap:
+        if pkt.number == "104":  # This packet contains a DATA layer and multiple HTTP2 layers.
+            layers = layer_extractor(pkt, upper_protocol="http2", lower_protocol='tls')
+            result = seq_filter(layers, layer_label_func)
+            assert len(result) == 2 and \
+                    result[0].layer_name == "http2" and \
+                    result[1].layer_name == "DATA" and \
+                    result[0].body_fragment == '72' and \
+                    result[1].tls_segment == '104'
+            
+        if pkt.number == "221":  # This packet contains a DATA layer and multiple HTTP2 layers.
+            layers = layer_extractor(pkt, upper_protocol="http2", lower_protocol='tls')
+            result = seq_filter(layers, layer_label_func)
+            assert len(result) == 4 and \
+                    result[0].layer_name == "DATA" and \
+                    result[1].layer_name == "DATA" and \
+                    result[2].layer_name == "DATA" and \
+                    result[3].layer_name == "http2" and \
+                    result[0].tls_segment == '221' and \
+                    result[1].tls_segment == '221' and \
+                    result[2].tls_segment == '221' and \
+                    result[3].body_fragment == '218'
+            
+    cap.close()
+
 def test_match_segment_number_01():
     """
     This test covers matching needed fields.

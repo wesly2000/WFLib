@@ -326,6 +326,12 @@ def layer_extractor(pkt, upper_protocol, lower_protocol):
 
     return layers
 
+def layer_label_func(layer):
+    """
+    This function maps a layer to the label. Note that DATA layer is the x (or 0) in seq_filter.
+    """
+    return 0 if layer.layer_name == 'DATA' else 1
+
 
 def seq_filter(seq: List[object], label_func: Callable[[object], str]):
     """
@@ -365,6 +371,9 @@ def seq_filter(seq: List[object], label_func: Callable[[object], str]):
         for i in range(len(generic_seq)):
             if generic_seq[i] == 0:
                 if first_y <= i:  # Fast-forward
+                    # Prepend all un-eliminated y before the current x.
+                    for j in range(first_y, i):
+                        new_seq_idx.append(j)
                     first_y = i + 1
                 new_seq_idx.append(i)
                 # Search for the first y that right follows x.
